@@ -172,3 +172,22 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Node folders to ignore
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnp.js
+.pnp.cjs
+.cache
+dist/
+build/
+coverage/
+.nyc_output/
+.eslintcache
+.prettiercache
+.stylelintcache
+*.map
