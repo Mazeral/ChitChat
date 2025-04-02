@@ -34,13 +34,14 @@
 <script setup></script>
 
 <style scoped>
-.chat-container { /* New style for the parent */
+.chat-container {
+  /* New style for the parent */
   display: flex;
   flex-direction: column;
   align-items: center; /* This will center children horizontally */
 }
 .chat-messages {
-width: 90%;
+  width: 90%;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -81,7 +82,7 @@ width: 90%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255,255,255,0.1);
+  background-color: rgba(255, 255, 255, 0.1);
   padding: 0 15px;
   border-radius: 10px;
   border: 1px solid white;
@@ -99,9 +100,8 @@ width: 90%;
   padding-left: 10px;
   color: white;
 }
-#messageInput::placeholder{
-	color: white;
-	
+#messageInput::placeholder {
+  color: white;
 }
 #messageInput:focus ~ #sendButton svg path,
 #messageInput:valid ~ #sendButton svg path {

@@ -1,19 +1,118 @@
 <template>
-  <div class="e-card-wrapper" :class="{ 'slide-out-left': shouldSlideOut }">
+  <div class="e-card-wrapper">
     <div class="e-card playing">
       <div class="wave"></div>
       <div class="wave"></div>
       <div class="wave"></div>
-      <div class="infotop">
-        <h1>Welcome To ChitChat!</h1>
-        <button>button 1</button>
-        <button>button 2</button>
-      </div>
+
+        <div
+          v-if="!nameEntered"
+          ref="infotopElement"
+          class="infotop"
+          :class="{
+            'fade-in': shouldFadeInWelcome,
+            'slide-out-left': isSlidingFromName,
+          }"
+        >
+          <h1>Welcome To ChitChat!</h1>
+          <input type="text" v-model="nameInput" placeholder="Enter Your Name" />
+          <button @click.prevent="submitName" :disabled="!nameInput">Enter</button>
+        </div>
+
+        <div
+          v-if="nameEntered && !joiningRoom"
+          class="infotop"
+          :class="{
+            'fade-in': showOptions,
+            'slide-out-left': isSlidingFromOptionsToJoin,
+            'slide-out-right': shouldSlideOutToName,
+          }"
+        >
+          <h1>Welcome {{ userName }}!</h1>
+          <button @click.prevent="handleJoinRoom">Join A Room</button> <span> or </span>
+          <button @click.prevent="createRoom">Create A Room</button>
+          <button @click.prevent="goBackToName">Back</button>
+        </div>
+
+        <div
+          v-if="nameEntered && joiningRoom"
+          class="infotop"
+          :class="{
+            'fade-in': showJoinRoomInfo,
+            'slide-out-right': isSlidingFromJoinToOptions,
+          }"
+        >
+          <h1>Enter Room ID</h1>
+          <input type="text" placeholder="Room ID" />
+          <button>Enter</button>
+          <button @click.prevent="goBack">Back</button>
+        </div>
     </div>
   </div>
 </template>
 
-<script setup></script>
+<script setup>
+import { ref, onMounted, nextTick } from 'vue'
+
+const nameEntered = ref(false)
+const nameInput = ref('')
+const userName = ref('')
+const joiningRoom = ref(false)
+const showOptions = ref(false)
+const showJoinRoomInfo = ref(false)
+const shouldFadeInWelcome = ref(false)
+const infotopElement = ref(null)
+const isSlidingFromName = ref(false)
+const isSlidingFromOptionsToJoin = ref(false)
+const shouldSlideOutToName = ref(false)
+const isSlidingFromJoinToOptions = ref(false)
+
+onMounted(() => {
+  setTimeout(() => {
+    shouldFadeInWelcome.value = true // Fade in on initial load
+  }, 100) // Small delay to ensure class is applied
+})
+
+const submitName = async () => {
+  userName.value = nameInput.value;
+  isSlidingFromName.value = true;
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  nameEntered.value = true;
+  showOptions.value = true;
+  isSlidingFromName.value = false;
+}
+
+const handleJoinRoom = async () => {
+  showOptions.value = false;
+  isSlidingFromOptionsToJoin.value = true;
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  joiningRoom.value = true;
+  showJoinRoomInfo.value = true;
+  isSlidingFromOptionsToJoin.value = false;
+}
+
+const goBack = async () => {
+  showJoinRoomInfo.value = false;
+  isSlidingFromJoinToOptions.value = true;
+  await new Promise(resolve => setTimeout(resolve, 750));
+  joiningRoom.value = false;
+  showOptions.value = true;
+  isSlidingFromJoinToOptions.value = false;
+}
+
+const goBackToName = async () => {
+  showOptions.value = false;
+  shouldSlideOutToName.value = true;
+  await new Promise(resolve => setTimeout(resolve, 750));
+  nameEntered.value = false;
+  shouldFadeInWelcome.value = true;
+  shouldSlideOutToName.value = false;
+}
+
+const createRoom = () => {
+  console.log(`created a room`)
+}
+</script>
 
 <style scoped>
 /* Optional wrapper to center the card */
@@ -29,8 +128,8 @@
 .e-card {
   /* --- CSS Variables for Dynamic Sizing --- */
   /* Modify these values to change the card size */
-  --card-width: 350px;
-  --card-height: 500px;
+  --card-width: 80vh;
+  --card-height: 80vh;
 
   /* Ratios for wave size relative to card size */
   /* Adjust if waves don't cover enough/too much on resize */
@@ -39,7 +138,6 @@
 
   /* Position for lower waves relative to card height */
   --wave-top-offset-ratio: 0.63; /* Approx 210 / 330 */
-
   /* Position for info section relative to card height */
   --info-top-ratio: 0.34; /* Approx 112 / 330 (based on original 5.6em * 20px) */
 
@@ -71,6 +169,7 @@
   border-radius: 40%; /* This keeps the oval shape */
   /* Default animation state (non-playing) */
   animation: wave 55s infinite linear;
+  z-index: -1;
 }
 
 /* Position the second and third wave divs lower */
@@ -123,50 +222,33 @@
   font-size: 20px;
   color: rgb(255, 255, 255);
   font-weight: 600;
-  z-index: 1; /* Ensure text is above waves */
+  z-index: 4; /* Ensure text is above waves */
+  opacity: 0; /* Initially hide the content */
 }
 
-.icon {
-  /* Size relative to infotop font-size */
-  width: 3em;
-  /* Vertical positioning relative to infotop font-size */
-  margin-top: -1em;
-  padding-bottom: 1em;
-  /* Prevent icon from shrinking too much if container gets narrow */
-  max-width: 100%;
-  height: auto; /* Maintain aspect ratio */
+.infotop h1 {
+  text-align: center;
+  color: white;
+  opacity: 1;
+  background-color: transparent;
 }
 
-.name {
-  position: relative; /* Keep relative positioning */
-  top: 1em; /* Position relative to text above */
-  /* Font size relative to infotop font-size */
-  font-size: 0.7em; /* Was 14px, now relative to 20px */
-  font-weight: 100;
-  text-transform: lowercase;
-  /* Prevent long names from breaking layout badly */
-  word-wrap: break-word;
+.infotop input[type='text'] {
+  padding: 10px;
+  margin: 15px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
 }
 
-/* --- Keyframes --- */
-
-@keyframes wave {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-button {
+.infotop button {
   --color: #00ccff;
   font-family: inherit;
   display: inline-block;
   width: 8em;
   height: 2.6em;
   line-height: 2.5em;
-  margin: 20px;
+  margin: 10px;
   position: relative;
   cursor: pointer;
   overflow: hidden;
@@ -175,13 +257,13 @@ button {
   z-index: 1;
   font-size: 17px;
   font-weight: bold;
-  text-shadow: horizontal-offset vertical-offset blur-radius color;
+  text-shadow: horizontal-offset horizontal-offset blur-radius color;
   border-radius: 6px;
   color: var(--color);
   background-color: transparent;
 }
 
-button:before {
+.infotop button:before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -191,72 +273,104 @@ button:before {
   border-radius: 50%;
 }
 
-button:hover {
+.infotop button:hover {
   color: #fff;
 }
 
-button:before {
+.infotop button:before {
   top: 100%;
   left: 100%;
   transition: all 0.7s;
 }
 
-button:hover:before {
+.infotop button:hover:before {
   top: -30px;
   left: -30px;
 }
 
-button:active:before {
+.infotop button:active:before {
   background: #6655ff;
   transition: background 0s;
 }
 
-h1 {
-  text-align: center;
-  color: white;
-  z-index: 2;
+.fade-in {
+  animation: fade-in 0.5s ease-out both; /* Use animation instead of transition */
   opacity: 1;
-  background-color: transparent;
 }
 
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes wave {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 .slide-out-left {
-  -webkit-animation: slide-out-left 1s ease-in both;
-  animation: slide-out-left 1s ease-in both;
+	-webkit-animation: slide-out-left 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
+	        animation: slide-out-left 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
 }
 
-/* ----------------------------------------------
- * Generated by Animista on 2025-4-2 7:6:57
- * Licensed under FreeBSD License.
- * See http://animista.net/license for more info. 
- * w: http://animista.net, t: @cssanimista
- * ---------------------------------------------- */
-
-/**
- * ----------------------------------------
- * animation slide-out-left
- * ----------------------------------------
- */
 @-webkit-keyframes slide-out-left {
   0% {
     -webkit-transform: translateX(0);
-    transform: translateX(0);
+            transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(-1000px);
-    transform: translateX(-1000px);
+            transform: translateX(-1000px);
     opacity: 0;
   }
 }
 @keyframes slide-out-left {
   0% {
     -webkit-transform: translateX(0);
-    transform: translateX(0);
+            transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(-1000px);
-    transform: translateX(-1000px);
+            transform: translateX(-1000px);
+    opacity: 0;
+  }
+}
+.slide-out-right {
+	-webkit-animation: slide-out-right 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
+	        animation: slide-out-right 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
+}
+
+@-webkit-keyframes slide-out-right {
+  0% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    -webkit-transform: translateX(1000px);
+            transform: translateX(1000px);
+    opacity: 0;
+  }
+}
+@keyframes slide-out-right {
+  0% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    -webkit-transform: translateX(1000px);
+            transform: translateX(1000px);
     opacity: 0;
   }
 }
