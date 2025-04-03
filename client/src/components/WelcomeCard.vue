@@ -5,55 +5,57 @@
       <div class="wave"></div>
       <div class="wave"></div>
 
-        <div
-          v-if="!nameEntered"
-          ref="infotopElement"
-          class="infotop"
-          :class="{
-            'fade-in': shouldFadeInWelcome,
-            'slide-out-left': isSlidingFromName,
-          }"
-        >
-          <h1>Welcome To ChitChat!</h1>
-          <input type="text" v-model="nameInput" placeholder="Enter Your Name" />
-          <button @click.prevent="submitName" :disabled="!nameInput">Enter</button>
-        </div>
+      <div
+        v-if="!nameEntered"
+        ref="infotopElement"
+        class="infotop"
+        :class="{
+          'fade-in': shouldFadeInWelcome,
+          'slide-out-left': isSlidingFromName,
+        }"
+      >
+        <h1>Welcome To ChitChat!</h1>
+        <input type="text" v-model="nameInput" placeholder="Enter Your Name" />
+        <button @click.prevent="submitName" :disabled="!nameInput">Enter</button>
+      </div>
 
-        <div
-          v-if="nameEntered && !joiningRoom"
-          class="infotop"
-          :class="{
-            'fade-in': showOptions,
-            'slide-out-left': isSlidingFromOptionsToJoin,
-            'slide-out-right': shouldSlideOutToName,
-          }"
-        >
-          <h1>Welcome {{ userName }}!</h1>
-          <button @click.prevent="handleJoinRoom">Join A Room</button> <span> or </span>
-          <button @click.prevent="createRoom">Create A Room</button>
-          <button @click.prevent="goBackToName">Back</button>
-        </div>
+      <div
+        v-if="nameEntered && !joiningRoom"
+        class="infotop"
+        :class="{
+          'fade-in': showOptions,
+          'slide-out-left': isSlidingFromOptionsToJoin,
+          'slide-out-right': shouldSlideOutToName,
+        }"
+      >
+        <h1>Welcome {{ userName }}!</h1>
+        <button @click.prevent="handleJoinRoom" @click="$emit('joined-chat')">Join A Room</button>
+        <span> or </span>
+        <button @click.prevent="joinChat">Create A Room</button>
+        <button @click.prevent="goBackToName">Back</button>
+      </div>
 
-        <div
-          v-if="nameEntered && joiningRoom"
-          class="infotop"
-          :class="{
-            'fade-in': showJoinRoomInfo,
-            'slide-out-right': isSlidingFromJoinToOptions,
-          }"
-        >
-          <h1>Enter Room ID</h1>
-          <input type="text" placeholder="Room ID" />
-          <button>Enter</button>
-          <button @click.prevent="goBack">Back</button>
-        </div>
+      <div
+        v-if="nameEntered && joiningRoom"
+        class="infotop"
+        :class="{
+          'fade-in': showJoinRoomInfo,
+          'slide-out-right': isSlidingFromJoinToOptions,
+        }"
+      >
+        <h1>Enter Room ID</h1>
+        <input v-model="room" type="text" placeholder="Room ID" />
+        <button @click="joinChat">Enter</button>
+        <button @click.prevent="goBack">Back</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, defineEmits } from 'vue'
 
+const emit = defineEmits(['joined-chat'])
 const nameEntered = ref(false)
 const nameInput = ref('')
 const userName = ref('')
@@ -66,6 +68,7 @@ const isSlidingFromName = ref(false)
 const isSlidingFromOptionsToJoin = ref(false)
 const shouldSlideOutToName = ref(false)
 const isSlidingFromJoinToOptions = ref(false)
+const room = ref('')
 
 onMounted(() => {
   setTimeout(() => {
@@ -74,42 +77,70 @@ onMounted(() => {
 })
 
 const submitName = async () => {
-  userName.value = nameInput.value;
-  isSlidingFromName.value = true;
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  nameEntered.value = true;
-  showOptions.value = true;
-  isSlidingFromName.value = false;
+  userName.value = nameInput.value
+  isSlidingFromName.value = true
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  nameEntered.value = true
+  showOptions.value = true
+  isSlidingFromName.value = false
 }
 
 const handleJoinRoom = async () => {
-  showOptions.value = false;
-  isSlidingFromOptionsToJoin.value = true;
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  joiningRoom.value = true;
-  showJoinRoomInfo.value = true;
-  isSlidingFromOptionsToJoin.value = false;
+  showOptions.value = false
+  isSlidingFromOptionsToJoin.value = true
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  joiningRoom.value = true
+  showJoinRoomInfo.value = true
+  isSlidingFromOptionsToJoin.value = false
 }
 
 const goBack = async () => {
-  showJoinRoomInfo.value = false;
-  isSlidingFromJoinToOptions.value = true;
-  await new Promise(resolve => setTimeout(resolve, 750));
-  joiningRoom.value = false;
-  showOptions.value = true;
-  isSlidingFromJoinToOptions.value = false;
+  showJoinRoomInfo.value = false
+  isSlidingFromJoinToOptions.value = true
+  await new Promise((resolve) => setTimeout(resolve, 750))
+  joiningRoom.value = false
+  showOptions.value = true
+  isSlidingFromJoinToOptions.value = false
 }
 
 const goBackToName = async () => {
-  showOptions.value = false;
-  shouldSlideOutToName.value = true;
-  await new Promise(resolve => setTimeout(resolve, 750));
-  nameEntered.value = false;
-  shouldFadeInWelcome.value = true;
-  shouldSlideOutToName.value = false;
+  showOptions.value = false
+  shouldSlideOutToName.value = true
+  await new Promise((resolve) => setTimeout(resolve, 750))
+  nameEntered.value = false
+  shouldFadeInWelcome.value = true
+  shouldSlideOutToName.value = false
 }
 
-const createRoom = () => {
+// a function to create the room id
+function generateRandomAlphanumericWordSimple() {
+  const possibleChars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  return Array.from({ length: 4 }, () => {
+    const randomIndex = Math.floor(Math.random() * possibleChars.length)
+    return possibleChars[randomIndex]
+  }).join('')
+}
+
+const websocket = new WebSocket('ws://localhost:8765')
+
+const createRoom = (websocket) => {
+  const room = generateRandomAlphanumericWordSimple()
+  websocket.onopen = () => {
+    if (roomToJoin) {
+      websocket.send(JSON.stringify({ action: 'join', room_id: room }))
+	  emit('joined-chat')
+    }
+  }
+  console.log(`created a room`)
+}
+
+const joinRoom = (websocket) => {
+  const room = (websocket.onopen = () => {
+    if (roomToJoin) {
+      websocket.send(JSON.stringify({ action: 'join', room_id: room.value }))
+	  emit('joined-chat')
+    }
+  })
   console.log(`created a room`)
 }
 </script>
@@ -164,7 +195,7 @@ const createRoom = () => {
   /* Using percentages relative to the wave's own size */
   margin-left: -50%;
   margin-top: -70%;
-  background: linear-gradient(744deg, #00cc99, #6655ff 60%, #00cc99);
+  background: linear-gradient(744deg, #2b59c3, #93a8ac 60%, #2b59c3);
   opacity: 0.6;
   border-radius: 40%; /* This keeps the oval shape */
   /* Default animation state (non-playing) */
@@ -242,7 +273,7 @@ const createRoom = () => {
 }
 
 .infotop button {
-  --color: #00ccff;
+  --color: #f5f5f5;
   font-family: inherit;
   display: inline-block;
   width: 8em;
@@ -252,7 +283,7 @@ const createRoom = () => {
   position: relative;
   cursor: pointer;
   overflow: hidden;
-  border: 2px solid #00ccff;
+  border: 2px solid #93a8ac;
   transition: color 0.5s;
   z-index: 1;
   font-size: 17px;
@@ -274,7 +305,7 @@ const createRoom = () => {
 }
 
 .infotop button:hover {
-  color: #fff;
+  color: #93a8ac;
 }
 
 .infotop button:before {
@@ -289,7 +320,7 @@ const createRoom = () => {
 }
 
 .infotop button:active:before {
-  background: #6655ff;
+  background: #2b59c3;
   transition: background 0s;
 }
 
@@ -317,60 +348,60 @@ const createRoom = () => {
   }
 }
 .slide-out-left {
-	-webkit-animation: slide-out-left 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
-	        animation: slide-out-left 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
+  -webkit-animation: slide-out-left 1s cubic-bezier(0.55, 0.085, 0.68, 0.53) both;
+  animation: slide-out-left 1s cubic-bezier(0.55, 0.085, 0.68, 0.53) both;
 }
 
 @-webkit-keyframes slide-out-left {
   0% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(-1000px);
-            transform: translateX(-1000px);
+    transform: translateX(-1000px);
     opacity: 0;
   }
 }
 @keyframes slide-out-left {
   0% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(-1000px);
-            transform: translateX(-1000px);
+    transform: translateX(-1000px);
     opacity: 0;
   }
 }
 .slide-out-right {
-	-webkit-animation: slide-out-right 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
-	        animation: slide-out-right 1s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
+  -webkit-animation: slide-out-right 1s cubic-bezier(0.55, 0.085, 0.68, 0.53) both;
+  animation: slide-out-right 1s cubic-bezier(0.55, 0.085, 0.68, 0.53) both;
 }
 
 @-webkit-keyframes slide-out-right {
   0% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(1000px);
-            transform: translateX(1000px);
+    transform: translateX(1000px);
     opacity: 0;
   }
 }
 @keyframes slide-out-right {
   0% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
   100% {
     -webkit-transform: translateX(1000px);
-            transform: translateX(1000px);
+    transform: translateX(1000px);
     opacity: 0;
   }
 }

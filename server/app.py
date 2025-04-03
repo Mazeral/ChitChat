@@ -11,6 +11,7 @@ The server runs indefinitely until manually stopped.
 import asyncio
 import json
 from websockets.asyncio.server import serve
+import websockets
 
 
 # Dictionary to store active rooms and the clients connected to them
@@ -30,11 +31,14 @@ async def notify_room(room_id, message):
                     await client.send(json.dumps(message))
                 except websockets.exceptions.ConnectionClosedError:
                     print(
-                            f"Error sending notification to a closed\
-                                    connection in room {room_id}.")
+                        f"Error sending notification to a closed\
+                            connection in room {room_id}.")
                 except websockets.exceptions.ConnectionClosedOK:
                     pass
                 except Exception as e:
+                    pass  # Ignore other exceptions
+        except Exception as e:
+            print(f"Error iterating through clients in room {room_id}: {e}")
 
 
 async def handler(websocket):
@@ -106,9 +110,6 @@ async def handler(websocket):
                                         "user_name": id(websocket)})
             if not rooms[room_id]:
                 del rooms[room_id]
-                print(deserialized_json)
-    except Exception as e:
-        raise e
 
 
 async def main():

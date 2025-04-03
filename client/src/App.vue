@@ -1,14 +1,27 @@
 <template>
   <div class="background-container"></div>
   <div class="content-container">
-    <WelcomeCard class="scale-up-center" />
-    <Chat />
+	  <WelcomeCard v-show="!isChatJoined" @joined-chat="handleJoinedChat"/>
+    <Chat v-if="isChatJoined" @leave-chat="handleLeaveChat"/>
   </div>
 </template>
 
 <script setup>
 import WelcomeCard from './components/WelcomeCard.vue'
 import Chat from './components/Chat.vue'
+import { ref } from 'vue'
+
+// Reactive state to track if the user has joined a chat room
+const isChatJoined = ref(false);
+
+// Function to handle the event when the user joins the chat room
+const handleJoinedChat = () => {
+  isChatJoined.value = true;
+};
+
+const handleLeaveChat = () => {
+	isChatJoined.value = false
+}
 </script>
 
 <style scoped>

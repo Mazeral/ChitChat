@@ -1,6 +1,6 @@
 <template>
   <div class="chat-container">
-    <button class="leave-button noselect">
+    <button class="leave-button noselect" @click.prevent="leave">
       <span class="text">Leave</span>
       <span class="icon">
         <svg
@@ -66,8 +66,9 @@
 
 <script setup>
 // Your script setup remains the same
-import { ref } from 'vue'
+import { ref, defineEmits } from 'vue'
 
+const emit = defineEmits(['leave-chat']);
 const websocket = new WebSocket('ws://localhost:8765')
 const messages = ref([])
 
@@ -91,6 +92,10 @@ function sendMessage(content) {
   } else {
     console.error('WebSocket connection is not open.')
   }
+}
+
+const leave = () => {
+	emit('leave-chat')
 }
 </script>
 
