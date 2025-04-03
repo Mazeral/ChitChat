@@ -29,9 +29,9 @@
         }"
       >
         <h1>Welcome {{ userName }}!</h1>
-        <button @click.prevent="handleJoinRoom" @click="$emit('joined-chat')">Join A Room</button>
+        <button @click.prevent="handleJoinRoom">Join A Room</button>
         <span> or </span>
-        <button @click.prevent="joinChat">Create A Room</button>
+        <button @click.prevent="createRoom">Create A Room</button>
         <button @click.prevent="goBackToName">Back</button>
       </div>
 
@@ -44,8 +44,8 @@
         }"
       >
         <h1>Enter Room ID</h1>
-        <input v-model="room" type="text" placeholder="Room ID" />
-        <button @click="joinChat">Enter</button>
+        <input v-model="roomToJoin" type="text" placeholder="Room ID" />
+        <button @click.prevent="joinRoom">Enter</button>
         <button @click.prevent="goBack">Back</button>
       </div>
     </div>
@@ -68,7 +68,8 @@ const isSlidingFromName = ref(false)
 const isSlidingFromOptionsToJoin = ref(false)
 const shouldSlideOutToName = ref(false)
 const isSlidingFromJoinToOptions = ref(false)
-const room = ref('')
+const roomToJoin = ref('')
+const currentRoomId = ref('')
 
 onMounted(() => {
   setTimeout(() => {
@@ -122,26 +123,75 @@ function generateRandomAlphanumericWordSimple() {
 }
 
 const websocket = new WebSocket('ws://localhost:8765')
+// Checking if the connection was made
+websocket.onopen = () => {
+  console.log('Connection to the server has been established')
+}
 
-const createRoom = (websocket) => {
-  const room = generateRandomAlphanumericWordSimple()
-  websocket.onopen = () => {
-    if (roomToJoin) {
-      websocket.send(JSON.stringify({ action: 'join', room_id: room }))
-	  emit('joined-chat')
-    }
+websocket.onclose = () => {
+  console.log('Connection to the server has been closed')
+}
+
+// Helper function to make communication easier
+const sendMessage = (action, data) => {
+  if (websocket.readyState === WebSocket.OPEN) {
+    websocket.send(JSON.stringify({ action, ...data }))
+  } else {
+    console.error('WebSocket connection is not open.')
   }
+}
+
+websocket.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data)
+    console.log('Received response in WelcomeCard:', data)
+
+    switch (data.type) {
+      case 'error':
+        console.error('Join failed:', data.message)
+        if (data.message === "Room doesn't exist") {
+          // Optionally update the UI to show "Room doesn't exist" error
+          console.log("Displaying 'Room doesn't exist' error to the user.")
+        } else if (data.message === 'Room ID is required to join.') {
+          // Optionally handle the case where no room ID was provided
+          console.log("Displaying 'Room ID required' error.")
+        } else {
+          // Handle other potential errors
+          console.log('Other error:', data.message)
+        }
+        break
+      case 'user_joined':
+        console.log('Successfully joined room. User ID:', data.user_id)
+        currentRoomId.value =
+          roomToJoin.value || currentRoomId.value /* if you store created room ID */
+        emit('joined-chat')
+        break
+      case 'success':
+        console.log(`${data.message}`)
+        emit('joined-chat')
+      default:
+        console.log('Received unknown message type:', data)
+        break
+    }
+  } catch (error) {
+    console.error('Error parsing message:', error)
+  }
+}
+
+const createRoom = () => {
+  const room = generateRandomAlphanumericWordSimple()
+    websocket.send(JSON.stringify({ action: "create", room_id: room }))
   console.log(`created a room`)
 }
 
 const joinRoom = (websocket) => {
-  const room = (websocket.onopen = () => {
-    if (roomToJoin) {
-      websocket.send(JSON.stringify({ action: 'join', room_id: room.value }))
-	  emit('joined-chat')
-    }
-  })
-  console.log(`created a room`)
+  if (roomToJoin.value) {
+    currentRoomId.value = roomToJoin.value // for debugging
+    console.log(`Attempting to join room: ${roomToJoin.value}`)
+    sendMessage('join', { room_id: roomToJoin.value })
+  } else {
+    console.log('Room ID cannot be empty!')
+  }
 }
 </script>
 

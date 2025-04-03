@@ -68,7 +68,7 @@
 // Your script setup remains the same
 import { ref, defineEmits } from 'vue'
 
-const emit = defineEmits(['leave-chat']);
+const emit = defineEmits(['leave-chat'])
 const websocket = new WebSocket('ws://localhost:8765')
 const messages = ref([])
 
@@ -95,7 +95,7 @@ function sendMessage(content) {
 }
 
 const leave = () => {
-	emit('leave-chat')
+  emit('leave-chat')
 }
 </script>
 

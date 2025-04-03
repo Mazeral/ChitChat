@@ -59,11 +59,8 @@ async def handler(websocket):
                 action = data.get('action')
                 if action == "join":
                     requested_room_id = data.get('room_id')
-                    if requested_room_id:
+                    if requested_room_id in rooms:
                         room_id = requested_room_id
-                        # handling new room requests
-                        if room_id not in rooms:
-                            rooms[room_id] = set()
                         # adding a user to an existing room
                         rooms[room_id].add(websocket)
                         await notify_room(room_id, {"type": "user_joined",
@@ -73,6 +70,22 @@ async def handler(websocket):
                             json.dumps({"type": "error",
                                         "message": "Room ID is\
                                                 required to join."}))
+                        print("Failed to join a none-existing room")
+                elif action == "create":
+                    new_room_id = data.get("room_id")
+                    if new_room_id not in rooms:
+                        rooms[new_room_id] = set()
+                        await websocket.send(
+                                json.dumps({
+                                    "type": "success",
+                                    "message": f"Room {new_room_id} Created"
+                                    })
+                                )
+                    # adding the user to the new room
+                    rooms[new_room_id].add(websocket)
+                    await notify_room(new_room_id, {"type": "user_joined",
+                                                    "user_id": id(websocket)})
+                    print("create")
                 elif action == "send" and room_id:
                     message_content = data.get('message')
                     if message_content:
