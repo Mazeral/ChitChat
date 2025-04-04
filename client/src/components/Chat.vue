@@ -33,19 +33,53 @@
     </button>
 
     <ul class="chat-messages">
-      <li class="received">this text is for testing the chat property correctly</li>
-      <li class="sent">this text is for a sent message</li>
-      <li class="received">another received message</li>
-      <li class="sent">this is another message I sent</li>
-      <li class="received">this text is for testing the chat property correctly</li>
-      <li class="received">this text is for testing the chat property correctly</li>
-      <li class="received">this text is for testing the chat property correctly</li>
-      <li class="received">this text is for testing the chat property correctly</li>
-      <li v-for="message in messages" :key="message.id" :class="{}">{{ message.content }}</li>
+      <li class="received slide-in-left">
+        <div class="username">User A</div>
+        <div class="message-content">this text is for testing the chat property correctly</div>
+      </li>
+      <li class="sent slide-in-right">
+        <div class="username">You</div>
+        <div class="message-content">this text is for a sent message</div>
+      </li>
+      <li class="received slide-in-left">
+        <div class="username">User B</div>
+        <div class="message-content">another received message</div>
+      </li>
+      <li class="sent slide-in-right">
+        <div class="username">You</div>
+        <div class="message-content">this is another message I sent</div>
+      </li>
+      <li class="received slide-in-left">
+        <div class="username">User C</div>
+        <div class="message-content">this text is for testing the chat property correctly</div>
+      </li>
+      <li class="received slide-in-left">
+        <div class="username">User A</div>
+        <div class="message-content">this text is for testing the chat property correctly</div>
+      </li>
+      <li class="received slide-in-left">
+        <div class="username">User D</div>
+        <div class="message-content">this text is for testing the chat property correctly</div>
+      </li>
+      <li class="received slide-in-left">
+        <div class="username">User B</div>
+        <div class="message-content">this text is for testing the chat property correctly</div>
+      </li>
+      <li
+        v-for="message in messages"
+        :key="message.id"
+        :class="[
+          {'received': message.type === 'received', 'sent': message.type === 'sent'},
+          message.type === 'received' ? 'slide-in-left' : 'slide-in-right'
+        ]"
+      >
+        <div class="username">{{ message.userName }}</div>
+        <div class="message-content">{{ message.content }}</div>
+      </li>
     </ul>
     <div class="messageBox">
-      <input required="" placeholder="Message..." type="text" id="messageInput" />
-      <button id="sendButton">
+      <input required="" placeholder="Message..." type="text" id="messageInput" @keyup.enter="handleSendMessage" />
+      <button id="sendButton" @click="handleSendMessage">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663">
           <path
             fill="none"
@@ -65,18 +99,25 @@
 </template>
 
 <script setup>
-// Your script setup remains the same
 import { ref, defineEmits } from 'vue'
 
 const emit = defineEmits(['leave-chat'])
 const websocket = new WebSocket('ws://localhost:8765')
 const messages = ref([])
+const messageInput = ref('')
 
 websocket.onmessage = (event) => {
   try {
     const data = JSON.parse(event.data)
     console.log('Received message:', data)
-    if (data.type === 'message') messages.value.push(event.data.content)
+    if (data.type === 'message' && data.content && data.user_name) {
+      messages.value.push({
+        id: Date.now(), // Simple way to generate a unique ID
+        userName: data.user_name,
+        content: data.content,
+        type: 'received', // Assuming all received messages are of type 'received'
+      })
+    }
   } catch (error) {
     console.error('Error parsing message:', error)
   }
@@ -86,15 +127,34 @@ websocket.onclose = () => {
   console.log('Disconnected from WebSocket server')
 }
 
+const handleSendMessage = () => {
+  const content = messageInput.value.trim()
+  if (content) {
+    sendMessage(content)
+    messages.value.push({
+      id: Date.now(),
+      userName: 'You', // Or get your actual username if you store it
+      content: content,
+      type: 'sent',
+    })
+    messageInput.value = ''
+  }
+}
+
 function sendMessage(content) {
   if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action: 'send_message', content: content }))
+    websocket.send(JSON.stringify({ action: 'send', message: content }))
   } else {
     console.error('WebSocket connection is not open.')
   }
 }
 
 const leave = () => {
+  if (websocket.readyState === WebSocket.OPEN) {
+    websocket.send(JSON.stringify({ action: 'disconnect' })) // Send disconnect action
+  } else {
+    console.error('WebSocket connection is not open.')
+  }
   emit('leave-chat')
 }
 </script>
@@ -289,4 +349,92 @@ const leave = () => {
   transform: scale(0.8);
 }
 /* Removed the .exit class as the wrapper div was removed */
+
+.username{
+	font-weight: bold;
+	opacity: 0.8;
+	font-style: italic;
+}
+.slide-in-right {
+	-webkit-animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+	        animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
+
+/* ----------------------------------------------
+ * Generated by Animista on 2025-4-4 7:30:48
+ * Licensed under FreeBSD License.
+ * See http://animista.net/license for more info. 
+ * w: http://animista.net, t: @cssanimista
+ * ---------------------------------------------- */
+
+/**
+ * ----------------------------------------
+ * animation slide-in-right
+ * ----------------------------------------
+ */
+@-webkit-keyframes slide-in-right {
+  0% {
+    -webkit-transform: translateX(1000px);
+            transform: translateX(1000px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slide-in-right {
+  0% {
+    -webkit-transform: translateX(1000px);
+            transform: translateX(1000px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+}
+.slide-in-left {
+	-webkit-animation: slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+	        animation: slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
+
+/* ----------------------------------------------
+ * Generated by Animista on 2025-4-4 7:31:8
+ * Licensed under FreeBSD License.
+ * See http://animista.net/license for more info. 
+ * w: http://animista.net, t: @cssanimista
+ * ---------------------------------------------- */
+
+/**
+ * ----------------------------------------
+ * animation slide-in-left
+ * ----------------------------------------
+ */
+@-webkit-keyframes slide-in-left {
+  0% {
+    -webkit-transform: translateX(-1000px);
+            transform: translateX(-1000px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slide-in-left {
+  0% {
+    -webkit-transform: translateX(-1000px);
+            transform: translateX(-1000px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateX(0);
+            transform: translateX(0);
+    opacity: 1;
+  }
+}
 </style>

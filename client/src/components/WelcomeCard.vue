@@ -55,7 +55,7 @@
 <script setup>
 import { ref, onMounted, nextTick, defineEmits } from 'vue'
 
-const emit = defineEmits(['joined-chat'])
+const emit = defineEmits(['joined-chat', 'room-created'])
 const nameEntered = ref(false)
 const nameInput = ref('')
 const userName = ref('')
@@ -168,7 +168,12 @@ websocket.onmessage = (event) => {
         break
       case 'success':
         console.log(`${data.message}`)
-        emit('joined-chat')
+        const roomId = data.room_id
+        currentRoomId.value = roomId
+		console.log('Emitting room-created event with ID:', roomId)
+        emit('room-created', roomId) // Emit the event with the room ID
+        emit('joined-chat') // Emit the event to transition to chat
+        break
       default:
         console.log('Received unknown message type:', data)
         break
@@ -180,7 +185,7 @@ websocket.onmessage = (event) => {
 
 const createRoom = () => {
   const room = generateRandomAlphanumericWordSimple()
-    websocket.send(JSON.stringify({ action: "create", room_id: room }))
+  websocket.send(JSON.stringify({ action: 'create', room_id: room }))
   console.log(`created a room`)
 }
 
@@ -194,6 +199,18 @@ const joinRoom = (websocket) => {
   }
 }
 </script>
+
+<style scoped>
+/* Optional wrapper to center the card */
+.e-card-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px; /* Add padding if needed */
+  min-height: 100vh; /* Example height */
+  box-sizing: border-box;
+  position: relative; /* To position the notification */
+}
 
 <style scoped>
 /* Optional wrapper to center the card */

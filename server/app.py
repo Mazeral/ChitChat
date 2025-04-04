@@ -1,145 +1,158 @@
 #!/usr/bin/env python3
-"""Websockets server
-This script creates a simple WebSocket echo server using the `websockets`
-library.
-It listens for incoming WebSocket connections on localhost port 8765.
-For each connected client, it receives messages and sends the same message back.
-The server runs indefinitely until manually stopped.
-"""
 
+"""Websockets server with structured handlers and room management"""
 
 import asyncio
 import json
 from websockets.asyncio.server import serve
 import websockets
 
-
-# Dictionary to store active rooms and the clients connected to them
-# {
-#     "room_identifier_1": {websocket_connection_1, websocket_connection_2,...},
-#     "room_identifier_2": {websocket_connection_3, ...},
-# }
+# Store rooms and their members
 rooms = {}
+# Track which room each user is in
+user_rooms = {}
 
+async def send_error(websocket, message):
+    """Send error message to client"""
+    await websocket.send(json.dumps({
+        "type": "error",
+        "message": message
+    }))
+
+async def send_success(websocket, message, room_id=None):
+    """Send success message to client"""
+    response = {"type": "success", "message": message}
+    if room_id:
+        response["room_id"] = room_id
+    await websocket.send(json.dumps(response))
 
 async def notify_room(room_id, message):
-    """Sends a notification to all the users in a room"""
+    """Broadcast message to all members of a room"""
     if room_id in rooms:
-        try:
-            for client in rooms[room_id]:
-                try:
-                    await client.send(json.dumps(message))
-                except websockets.exceptions.ConnectionClosedError:
-                    print(
-                        f"Error sending notification to a closed\
-                            connection in room {room_id}.")
-                except websockets.exceptions.ConnectionClosedOK:
-                    pass
-                except Exception as e:
-                    pass  # Ignore other exceptions
-        except Exception as e:
-            print(f"Error iterating through clients in room {room_id}: {e}")
+        for client in list(rooms[room_id]):  # Create copy to avoid modification during iteration
+            try:
+                await client.send(json.dumps(message))
+            except (websockets.exceptions.ConnectionClosedError, 
+                    websockets.exceptions.ConnectionClosedOK):
+                pass
 
+async def remove_user_from_room(websocket):
+    """Remove user from their current room and clean up empty rooms"""
+    if websocket not in user_rooms:
+        return
+
+    room_id = user_rooms[websocket]
+    rooms[room_id].discard(websocket)
+    del user_rooms[websocket]
+
+    await notify_room(room_id, {
+        "type": "user_left",
+        "user_id": id(websocket)
+    })
+
+    # Cleanup empty rooms
+    if not rooms[room_id]:
+        del rooms[room_id]
+
+async def handle_join(websocket, data):
+    """Handle join room request"""
+    requested_room = data.get("room_id")
+    if not requested_room:
+        await send_error(websocket, "Missing room_id for join action")
+        return
+
+    if requested_room not in rooms:
+        await send_error(websocket, "Room does not exist")
+        return
+
+    await remove_user_from_room(websocket)
+    rooms[requested_room].add(websocket)
+    user_rooms[websocket] = requested_room
+
+    await send_success(websocket, f"Joined room {requested_room}", requested_room)
+    await notify_room(requested_room, {
+        "type": "user_joined",
+        "user_id": id(websocket)
+    })
+
+async def handle_create(websocket, data):
+    """Handle create room request"""
+    new_room = data.get("room_id")
+    if not new_room:
+        await send_error(websocket, "Missing room_id for create action")
+        return
+
+    if new_room in rooms:
+        await send_error(websocket, "Room already exists")
+        return
+
+    rooms[new_room] = set()
+    await remove_user_from_room(websocket)
+    rooms[new_room].add(websocket)
+    user_rooms[websocket] = new_room
+
+    await send_success(websocket, f"Created room {new_room}", new_room)
+    await notify_room(new_room, {
+        "type": "user_joined",
+        "user_id": id(websocket)
+    })
+
+async def handle_send(websocket, data):
+    """Handle message sending to current room"""
+    if websocket not in user_rooms:
+        await send_error(websocket, "Not in any room")
+        return
+
+    message = data.get("message")
+    if not message:
+        await send_error(websocket, "Missing message content")
+        return
+
+    room_id = user_rooms[websocket]
+    await notify_room(room_id, {
+        "type": "message",
+        "user_id": id(websocket),
+        "content": message
+    })
+
+async def handle_disconnect(websocket, data):
+    """Handle explicit disconnect request"""
+    await remove_user_from_room(websocket)
+    await send_success(websocket, "Disconnected from room")
+
+ACTION_HANDLERS = {
+    "join": handle_join,
+    "create": handle_create,
+    "send": handle_send,
+    "disconnect": handle_disconnect
+}
 
 async def handler(websocket):
-    """Handler for the websocket
-    websocket: The websocket object, handles sending and receices via websocket
-    protocol.
-
-    We receive the sent JSON data in string format because we need to serialize
-    the data to string, then we deserialize it into a JSON format
-    """
-    room_id = None
+    """Main connection handler"""
     try:
-        async for serialized_json in websocket:
+        async for message in websocket:
             try:
-                # Deserialize the serialized_json string
-                data = json.loads(serialized_json)
+                data = json.loads(message)
+                action = data.get("action")
 
-                action = data.get('action')
-                if action == "join":
-                    requested_room_id = data.get('room_id')
-                    if requested_room_id in rooms:
-                        room_id = requested_room_id
-                        # adding a user to an existing room
-                        rooms[room_id].add(websocket)
-                        await notify_room(room_id, {"type": "user_joined",
-                                                    "user_id": id(websocket)})
-                    else:
-                        await websocket.send(
-                            json.dumps({"type": "error",
-                                        "message": "Room ID is\
-                                                required to join."}))
-                        print("Failed to join a none-existing room")
-                elif action == "create":
-                    new_room_id = data.get("room_id")
-                    if new_room_id not in rooms:
-                        rooms[new_room_id] = set()
-                        await websocket.send(
-                                json.dumps({
-                                    "type": "success",
-                                    "message": f"Room {new_room_id} Created"
-                                    })
-                                )
-                    # adding the user to the new room
-                    rooms[new_room_id].add(websocket)
-                    await notify_room(new_room_id, {"type": "user_joined",
-                                                    "user_id": id(websocket)})
-                    print("create")
-                elif action == "send" and room_id:
-                    message_content = data.get('message')
-                    if message_content:
-                        await notify_room(room_id, {"type": "message",
-                                                    "user_name": id(websocket),
-                                                    "content": message_content})
-                    else:
-                        await websocket.send(json.dumps({"type": "error",
-                                                         "message": "Message\
-                                                         content is missing."}))
-                else:
-                    await websocket.send(json.dumps({"type": "error",
-                                                     "message": "Invalid\
-                                                             action."}))
+                if action not in ACTION_HANDLERS:
+                    await send_error(websocket, "Invalid action")
+                    continue
+
+                await ACTION_HANDLERS[action](websocket, data)
             except json.JSONDecodeError:
-                await websocket.send(json.dumps({"type": "error",
-                                                 "message": "Invalid JSON\
-                                                         format."}))
+                await send_error(websocket, "Invalid JSON format")
             except Exception as e:
                 print(f"Error processing message: {e}")
-                await websocket.send(json.dumps({"type": "error",
-                                                 "message": f"Server error:\
-                                                         {e}"}))
-    # Handling disconnections
-    except websockets.exceptions.ConnectionClosedError:
-        pass
-    except websockets.exceptions.ConnectionClosedOK:
-        pass
-        action = serialized_json['action']
+                await send_error(websocket, f"Server error: {str(e)}")
     finally:
-        # Notifying if a user disconnected
-        if room_id and websocket in rooms.get(room_id, set()):
-            rooms[room_id].remove(websocket)
-            await notify_room(room_id, {"type": "user_left",
-                                        "user_name": id(websocket)})
-            if not rooms[room_id]:
-                del rooms[room_id]
-
+        await remove_user_from_room(websocket)
 
 async def main():
-    """Sets up and starts the WebSocket server.
-
-    This asynchronous function initializes the WebSocket server using the
-    `websockets.serve` function.
-    It binds the `echo` function as the handler for incoming connections on
-    the specified host ("localhost")
-    and port (8765). Once the server is successfully started, it prints a
-    confirmation message
-    and then enters an infinite loop (`server.serve_forever()`) to keep the
-    server running and listening for new connections and messages.
-    """
+    """Start the websocket server"""
     async with serve(handler, "localhost", 8765) as server:
-        print("Websocket server started")
-        await server.serve_forever()  # To make it run forever
+        print("WebSocket server started")
+        await server.serve_forever()
 
 if __name__ == "__main__":
     asyncio.run(main())
