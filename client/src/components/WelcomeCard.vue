@@ -84,7 +84,7 @@ const submitName = async () => {
   nameEntered.value = true
   showOptions.value = true
   isSlidingFromName.value = false
-  emit('name-submitted', userName.value);
+  emit('name-submitted', userName.value)
   console.log('WelcomeCard: emit name-submitted', userName.value)
 }
 
@@ -157,12 +157,14 @@ websocket.onmessage = (event) => {
           console.log("Displaying 'Room doesn't exist' error to the user.")
         } else if (data.message === 'Missing room_id for join action') {
           console.log("Displaying 'Room ID required' error.")
-        } else if (data.message === 'Missing username for join action' || data.message === 'Missing username for create action') {
-          console.log("Username is required.")
+        } else if (
+          data.message === 'Missing username for join action' ||
+          data.message === 'Missing username for create action'
+        ) {
+          console.log('Username is required.')
         } else if (data.message === 'Room already exists') {
-          console.log("Room already exists.")
-        }
-        else {
+          console.log('Room already exists.')
+        } else {
           // Handle other potential errors
           console.log('Other error:', data.message)
         }

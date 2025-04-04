@@ -69,8 +69,8 @@
         v-for="message in messages"
         :key="message.id"
         :class="[
-          {'received': message.type === 'received', 'sent': message.type === 'sent'},
-          message.type === 'received' ? 'slide-in-left' : 'slide-in-right'
+          { received: message.type === 'received', sent: message.type === 'sent' },
+          message.type === 'received' ? 'slide-in-left' : 'slide-in-right',
         ]"
       >
         <div class="username">{{ message.userName }}</div>
@@ -78,7 +78,13 @@
       </li>
     </ul>
     <div class="messageBox">
-      <input required="" placeholder="Message..." type="text" id="messageInput" @keyup.enter="handleSendMessage" />
+      <input
+        required=""
+        placeholder="Message..."
+        type="text"
+        id="messageInput"
+        @keyup.enter="handleSendMessage"
+      />
       <button id="sendButton" @click="handleSendMessage">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663">
           <path
@@ -128,27 +134,27 @@ websocket.onclose = () => {
 }
 
 const handleSendMessage = () => {
-  console.log('handleSendMessage function called!'); // Add this line
-  const content = messageInput.value.trim();
+  console.log('handleSendMessage function called!') // Add this line
+  const content = messageInput.value.trim()
   if (content) {
-    sendMessage(content);
+    sendMessage(content)
     messages.value.push({
       id: Date.now(),
       userName: 'You', // Or get your actual username if you store it
       content: content,
       type: 'sent',
-    });
-    messageInput.value = '';
+    })
+    messageInput.value = ''
   }
 }
 
 function sendMessage(content) {
-  console.log('sendMessage function called with content:', content); // Add this
-  console.log('WebSocket readyState:', websocket.readyState); // Add this
+  console.log('sendMessage function called with content:', content) // Add this
+  console.log('WebSocket readyState:', websocket.readyState) // Add this
   if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action: 'send', message: content }));
+    websocket.send(JSON.stringify({ action: 'send', message: content }))
   } else {
-    console.error('WebSocket connection is not open.');
+    console.error('WebSocket connection is not open.')
   }
 }
 
@@ -231,7 +237,7 @@ const leave = () => {
   padding: 0 5px 0 15px; /* Adjusted padding */
   border-radius: 10px;
   border: 1px solid white;
-  font-size:30px;
+  font-size: 30px;
 }
 
 .messageBox:focus-within {
@@ -248,7 +254,7 @@ const leave = () => {
   border: none;
   padding-left: 10px;
   color: white;
-  font-size:20px;
+  font-size: 20px;
 }
 #messageInput::placeholder {
   color: white;
@@ -355,14 +361,14 @@ const leave = () => {
 }
 /* Removed the .exit class as the wrapper div was removed */
 
-.username{
-	font-weight: bold;
-	opacity: 0.8;
-	font-style: italic;
+.username {
+  font-weight: bold;
+  opacity: 0.8;
+  font-style: italic;
 }
 .slide-in-right {
-	-webkit-animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
-	        animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+  -webkit-animation: slide-in-right 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: slide-in-right 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 /* ----------------------------------------------
@@ -380,30 +386,30 @@ const leave = () => {
 @-webkit-keyframes slide-in-right {
   0% {
     -webkit-transform: translateX(1000px);
-            transform: translateX(1000px);
+    transform: translateX(1000px);
     opacity: 0;
   }
   100% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
 }
 @keyframes slide-in-right {
   0% {
     -webkit-transform: translateX(1000px);
-            transform: translateX(1000px);
+    transform: translateX(1000px);
     opacity: 0;
   }
   100% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
 }
 .slide-in-left {
-	-webkit-animation: slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
-	        animation: slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+  -webkit-animation: slide-in-left 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: slide-in-left 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 /* ----------------------------------------------
@@ -421,24 +427,24 @@ const leave = () => {
 @-webkit-keyframes slide-in-left {
   0% {
     -webkit-transform: translateX(-1000px);
-            transform: translateX(-1000px);
+    transform: translateX(-1000px);
     opacity: 0;
   }
   100% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
 }
 @keyframes slide-in-left {
   0% {
     -webkit-transform: translateX(-1000px);
-            transform: translateX(-1000px);
+    transform: translateX(-1000px);
     opacity: 0;
   }
   100% {
     -webkit-transform: translateX(0);
-            transform: translateX(0);
+    transform: translateX(0);
     opacity: 1;
   }
 }
