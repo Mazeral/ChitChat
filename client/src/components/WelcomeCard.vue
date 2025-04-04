@@ -55,7 +55,7 @@
 <script setup>
 import { ref, onMounted, nextTick, defineEmits } from 'vue'
 
-const emit = defineEmits(['joined-chat', 'room-created'])
+const emit = defineEmits(['joined-chat', 'room-created', 'name-submitted'])
 const nameEntered = ref(false)
 const nameInput = ref('')
 const userName = ref('')
@@ -84,6 +84,8 @@ const submitName = async () => {
   nameEntered.value = true
   showOptions.value = true
   isSlidingFromName.value = false
+  emit('name-submitted', userName.value);
+  console.log('WelcomeCard: emit name-submitted', userName.value)
 }
 
 const handleJoinRoom = async () => {
@@ -93,6 +95,7 @@ const handleJoinRoom = async () => {
   joiningRoom.value = true
   showJoinRoomInfo.value = true
   isSlidingFromOptionsToJoin.value = false
+  // emit('joined-chat'); // Remove this line
 }
 
 const goBack = async () => {
@@ -152,27 +155,29 @@ websocket.onmessage = (event) => {
         if (data.message === "Room doesn't exist") {
           // Optionally update the UI to show "Room doesn't exist" error
           console.log("Displaying 'Room doesn't exist' error to the user.")
-        } else if (data.message === 'Room ID is required to join.') {
-          // Optionally handle the case where no room ID was provided
+        } else if (data.message === 'Missing room_id for join action') {
           console.log("Displaying 'Room ID required' error.")
-        } else {
+        } else if (data.message === 'Missing username for join action' || data.message === 'Missing username for create action') {
+          console.log("Username is required.")
+        } else if (data.message === 'Room already exists') {
+          console.log("Room already exists.")
+        }
+        else {
           // Handle other potential errors
           console.log('Other error:', data.message)
         }
-        break
-      case 'user_joined':
-        console.log('Successfully joined room. User ID:', data.user_id)
-        currentRoomId.value =
-          roomToJoin.value || currentRoomId.value /* if you store created room ID */
-        emit('joined-chat')
         break
       case 'success':
         console.log(`${data.message}`)
         const roomId = data.room_id
         currentRoomId.value = roomId
-		console.log('Emitting room-created event with ID:', roomId)
+        console.log('Emitting room-created event with ID:', roomId)
         emit('room-created', roomId) // Emit the event with the room ID
         emit('joined-chat') // Emit the event to transition to chat
+        break
+      case 'user_joined':
+        // This is typically for other users joining, the 'success' handles the current user
+        console.log('Another user joined:', data.username)
         break
       default:
         console.log('Received unknown message type:', data)
@@ -185,15 +190,15 @@ websocket.onmessage = (event) => {
 
 const createRoom = () => {
   const room = generateRandomAlphanumericWordSimple()
-  websocket.send(JSON.stringify({ action: 'create', room_id: room }))
-  console.log(`created a room`)
+  sendMessage('create', { room_id: room, username: userName.value })
+  console.log(`created a room with ID: ${room}`)
 }
 
-const joinRoom = (websocket) => {
+const joinRoom = () => {
   if (roomToJoin.value) {
     currentRoomId.value = roomToJoin.value // for debugging
-    console.log(`Attempting to join room: ${roomToJoin.value}`)
-    sendMessage('join', { room_id: roomToJoin.value })
+    console.log(`Attempting to join room: ${roomToJoin.value} with username: ${userName.value}`)
+    sendMessage('join', { room_id: roomToJoin.value, username: userName.value })
   } else {
     console.log('Room ID cannot be empty!')
   }

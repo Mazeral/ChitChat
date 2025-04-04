@@ -3,12 +3,9 @@
   <div class="content-container">
     <WelcomeCard
       v-show="!isChatJoined"
-      @joined-chat="handleJoinedChat"
-      @room-created="handleRoomCreated"
-      :class="welcomeCardTransitionClass"
+      @joined-chat="handleRoomJoined" @room-created="handleRoomCreated" @name-submitted="handleJoinedChat" :class="welcomeCardTransitionClass"
     />
-    <Chat v-if="isChatJoined" @leave-chat="handleLeaveChat" :class="chatTransitionClass" />
-
+    <Chat v-if="isChatJoined" @leave-chat="handleLeaveChat" :userName="userName" :class="chatTransitionClass" />
     <div v-if="showNotification" class="notification">
       Room created with ID: {{ notificationMessage }}
       <button @click="closeNotification" class="close-button">
@@ -41,44 +38,119 @@
 <script setup>
 import WelcomeCard from './components/WelcomeCard.vue'
 import Chat from './components/Chat.vue'
-import { ref, computed, onMounted, watch } from 'vue'
+// Import nextTick
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 
 // Reactive state to track if the user has joined a chat room
 const isChatJoined = ref(false)
 const isWelcomeCardLeaving = ref(false)
 const isChatLeaving = ref(false)
-const isWelcomeCardEntering = ref(false)
+const isWelcomeCardEntering = ref(true) // Start entering on mount
 const isChatEntering = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
+const userName = ref('')
 
-// Function to handle the event when the user joins the chat room
-const handleJoinedChat = () => {
-  isWelcomeCardLeaving.value = true
-  // Wait for the animation to finish before actually hiding the component
-  setTimeout(() => {
-    // Trigger the enter animation for Chat *before* setting isChatJoined
-    isChatEntering.value = true
-    isChatJoined.value = true
-    isWelcomeCardLeaving.value = false
-  }, 500) // Duration of the slide-out-top animation
+// // Removed the duplicate onMounted setting isWelcomeCardEntering to true
+// onMounted(() => {
+//  isWelcomeCardEntering.value = true
+//  isChatJoined.value = false // Keep this if needed for initial state clarity
+// })
+
+// Function to handle the event when the user submits their name
+const handleJoinedChat = (name) => {
+  userName.value = name;
+  // REMOVE THESE LINES - Don't trigger exit animation here
+  // isWelcomeCardLeaving.value = true
+  // setTimeout(() => {
+  //   isWelcomeCardEntering.value = false // This logic might need rethinking or removal
+  // }, 500)
+  console.log('handleJoinedChat (name submitted) called with name:', name);
 }
 
 const handleLeaveChat = () => {
-  isChatLeaving.value = true
-  // Wait for the animation to finish before actually hiding the component
+  isChatLeaving.value = true;
+  isChatJoined.value = false; // Set this immediately to start hiding Chat via v-if
+
   setTimeout(() => {
-    // Trigger the enter animation for WelcomeCard *before* setting isChatJoined
-    isWelcomeCardEntering.value = true
-    isChatJoined.value = false
-    isChatLeaving.value = false
-  }, 500) // Duration of the slide-out-top animation
+    isWelcomeCardEntering.value = true; // Start welcome card enter animation
+    isChatLeaving.value = false; // Reset chat leaving flag
+    // No need to set isChatJoined to false again here
+
+    // Reset welcome card entering animation flag after it plays
+    setTimeout(() => {
+        isWelcomeCardEntering.value = false;
+    }, 500); // Duration of welcome card enter animation
+
+  }, 500); // Duration of chat exit animation
+  console.log('handleLeaveChat called');
 }
 
+const handleRoomJoined = () => {
+  isWelcomeCardLeaving.value = true; // 1. Start WelcomeCard exit animation
+  console.log('handleRoomJoined: WelcomeCard leaving animation started.');
+
+  // 2. Wait for WelcomeCard exit animation to finish
+  setTimeout(() => {
+    isChatJoined.value = true; // 3. Logically switch: hide WelcomeCard (v-show), prepare Chat (v-if)
+    isWelcomeCardLeaving.value = false; // Reset leaving flag (can be done here or on re-entry)
+    console.log('handleRoomJoined: isChatJoined set to true.');
+
+    // 4. Ensure DOM updates before starting Chat enter animation
+    nextTick(() => {
+      isChatEntering.value = true; // 5. Start Chat enter animation
+      console.log('handleRoomJoined: Chat entering animation started.');
+
+      // 6. Clean up Chat entering flag after animation duration
+      setTimeout(() => {
+         isChatEntering.value = false;
+         console.log('handleRoomJoined: Chat entering animation finished.');
+      }, 500); // Duration of chat enter animation (scale-in-center)
+    });
+
+  }, 500); // Duration of welcome card exit animation (slide-out-top)
+
+  console.log('handleRoomJoined (joined-chat event) called');
+}
+
+const handleRoomCreated = (roomId) => {
+  notificationMessage.value = `${roomId}`
+  showNotification.value = true
+
+  isWelcomeCardLeaving.value = true; // 1. Start WelcomeCard exit animation
+  console.log('handleRoomCreated: WelcomeCard leaving animation started.');
+
+  // 2. Wait for WelcomeCard exit animation to finish
+  setTimeout(() => {
+    isChatJoined.value = true; // 3. Logically switch
+    isWelcomeCardLeaving.value = false; // Reset leaving flag
+    console.log('handleRoomCreated: isChatJoined set to true.');
+
+    // 4. Ensure DOM updates before starting Chat enter animation
+    nextTick(() => {
+      isChatEntering.value = true; // 5. Start Chat enter animation
+      console.log('handleRoomCreated: Chat entering animation started.');
+
+      // 6. Clean up Chat entering flag after animation duration
+      setTimeout(() => {
+         isChatEntering.value = false;
+         console.log('handleRoomCreated: Chat entering animation finished.');
+      }, 500); // Duration of chat enter animation (scale-in-center)
+    });
+
+  }, 500); // Duration of welcome card exit animation (slide-out-top)
+
+  console.log('handleRoomCreated called with roomId:', roomId);
+}
+
+
+// --- Computed Classes (Unchanged but verify class names match CSS) ---
 const welcomeCardTransitionClass = computed(() => {
   if (isWelcomeCardLeaving.value) {
     return 'slide-out-top'
   } else if (!isChatJoined.value && isWelcomeCardEntering.value) {
+     // This condition might need adjustment based on handleLeaveChat logic
+     // Ensure 'scale-in-center' is applied when returning from chat
     return 'scale-in-center'
   }
   return ''
@@ -93,46 +165,48 @@ const chatTransitionClass = computed(() => {
   return ''
 })
 
-// Trigger initial enter animation for WelcomeCard on mount
-onMounted(() => {
-  isWelcomeCardEntering.value = true
-})
+// --- Watchers (Keep for resetting animation flags, review logic if needed) ---
+// This logic might need adjustment based on the new animation flow
+// onMounted(() => {
+//   // Initial setup handled by ref defaults now
+//   // Ensure the initial animation flag is reset
+//   resetWelcomeCardEnter();
+// })
 
-// Reset enter animation flags after the animation duration
-const resetWelcomeCardEnter = () => {
-  setTimeout(() => {
-    isWelcomeCardEntering.value = false
-  }, 500) // Duration of scale-in-center
-}
+// // Reset enter animation flags after the animation duration - These might be redundant now
+// const resetWelcomeCardEnter = () => {
+//   setTimeout(() => {
+//     isWelcomeCardEntering.value = false
+//   }, 500) // Duration of scale-in-center
+// }
 
-const resetChatEnter = () => {
-  setTimeout(() => {
-    isChatEntering.value = false
-  }, 500) // Duration of scale-in-center
-}
+// const resetChatEnter = () => {
+//   setTimeout(() => {
+//     isChatEntering.value = false
+//   }, 500) // Duration of scale-in-center
+// }
 
-watch(
-  () => !isChatJoined.value,
-  (newValue) => {
-    if (newValue) {
-      resetWelcomeCardEnter()
-    }
-  },
-)
+// watch(
+//   () => !isChatJoined.value,
+//   (newValue, oldValue) => {
+//      // Trigger enter animation only when transitioning from chat back to welcome
+//     if (newValue && !oldValue) {
+//         isWelcomeCardEntering.value = true;
+//         resetWelcomeCardEnter();
+//     }
+//   },
+// )
 
-watch(
-  () => isChatJoined.value,
-  (newValue) => {
-    if (newValue) {
-      resetChatEnter()
-    }
-  },
-)
-
-const handleRoomCreated = (roomId) => {
-  notificationMessage.value = `${roomId}`
-  showNotification.value = true
-}
+// watch(
+//   () => isChatJoined.value,
+//   (newValue, oldValue) => {
+//     // Trigger enter animation only when transitioning from welcome to chat
+//     if (newValue && !oldValue) {
+//         // isChatEntering handled within the event handlers now
+//         // resetChatEnter();
+//     }
+//   },
+// )
 
 const closeNotification = () => {
   showNotification.value = false

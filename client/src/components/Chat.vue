@@ -128,24 +128,27 @@ websocket.onclose = () => {
 }
 
 const handleSendMessage = () => {
-  const content = messageInput.value.trim()
+  console.log('handleSendMessage function called!'); // Add this line
+  const content = messageInput.value.trim();
   if (content) {
-    sendMessage(content)
+    sendMessage(content);
     messages.value.push({
       id: Date.now(),
       userName: 'You', // Or get your actual username if you store it
       content: content,
       type: 'sent',
-    })
-    messageInput.value = ''
+    });
+    messageInput.value = '';
   }
 }
 
 function sendMessage(content) {
+  console.log('sendMessage function called with content:', content); // Add this
+  console.log('WebSocket readyState:', websocket.readyState); // Add this
   if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action: 'send', message: content }))
+    websocket.send(JSON.stringify({ action: 'send', message: content }));
   } else {
-    console.error('WebSocket connection is not open.')
+    console.error('WebSocket connection is not open.');
   }
 }
 
@@ -228,6 +231,7 @@ const leave = () => {
   padding: 0 5px 0 15px; /* Adjusted padding */
   border-radius: 10px;
   border: 1px solid white;
+  font-size:30px;
 }
 
 .messageBox:focus-within {
@@ -244,6 +248,7 @@ const leave = () => {
   border: none;
   padding-left: 10px;
   color: white;
+  font-size:20px;
 }
 #messageInput::placeholder {
   color: white;
@@ -436,5 +441,31 @@ const leave = () => {
             transform: translateX(0);
     opacity: 1;
   }
+}
+/* Global scrollbar styles */
+.chat-messages::-webkit-scrollbar {
+  width: 8px; /* Width of the scrollbar */
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.1); /* Color of the track */
+  border-radius: 10px; /* Rounded corners for the track */
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background-color: #888; /* Color of the thumb */
+  border-radius: 10px; /* Rounded corners for the thumb */
+  border: 2px solid transparent; /* Add some padding/spacing */
+  background-clip: padding-box; /* Make the border part of the padding */
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background-color: #555; /* Color of the thumb on hover */
+}
+
+/* Firefox global scrollbar styles */
+.chat-messages {
+  scrollbar-width: thin; /* Can be auto, thin, or none */
+  scrollbar-color: #888 rgba(0, 0, 0, 0.1); /* thumb color track color */
 }
 </style>

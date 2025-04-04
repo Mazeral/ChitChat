@@ -11,6 +11,8 @@ import websockets
 rooms = {}
 # Track which room each user is in
 user_rooms = {}
+# Track usernames for each connection
+user_names = {}
 
 async def send_error(websocket, message):
     """Send error message to client"""
@@ -29,7 +31,7 @@ async def send_success(websocket, message, room_id=None):
 async def notify_room(room_id, message):
     """Broadcast message to all members of a room"""
     if room_id in rooms:
-        for client in list(rooms[room_id]):  # Create copy to avoid modification during iteration
+        for client in list(rooms[room_id]):
             try:
                 await client.send(json.dumps(message))
             except (websockets.exceptions.ConnectionClosedError, 
@@ -37,30 +39,37 @@ async def notify_room(room_id, message):
                 pass
 
 async def remove_user_from_room(websocket):
-    """Remove user from their current room and clean up empty rooms"""
+    """Remove user from their current room and clean up"""
     if websocket not in user_rooms:
         return
 
     room_id = user_rooms[websocket]
+    username = user_names.get(websocket, "Unknown User")
+    
     rooms[room_id].discard(websocket)
     del user_rooms[websocket]
+    if websocket in user_names:
+        del user_names[websocket]
 
     await notify_room(room_id, {
         "type": "user_left",
-        "user_id": id(websocket)
+        "username": username  # Changed from user_name
     })
 
-    # Cleanup empty rooms
     if not rooms[room_id]:
         del rooms[room_id]
 
 async def handle_join(websocket, data):
     """Handle join room request"""
     requested_room = data.get("room_id")
+    username = data.get("username")
+    
     if not requested_room:
         await send_error(websocket, "Missing room_id for join action")
         return
-
+    if not username:
+        await send_error(websocket, "Missing username for join action")
+        return
     if requested_room not in rooms:
         await send_error(websocket, "Room does not exist")
         return
@@ -68,20 +77,25 @@ async def handle_join(websocket, data):
     await remove_user_from_room(websocket)
     rooms[requested_room].add(websocket)
     user_rooms[websocket] = requested_room
+    user_names[websocket] = username
 
     await send_success(websocket, f"Joined room {requested_room}", requested_room)
     await notify_room(requested_room, {
         "type": "user_joined",
-        "user_id": id(websocket)
+        "username": username  # Changed from user_name
     })
 
 async def handle_create(websocket, data):
     """Handle create room request"""
     new_room = data.get("room_id")
+    username = data.get("username")
+    
     if not new_room:
         await send_error(websocket, "Missing room_id for create action")
         return
-
+    if not username:
+        await send_error(websocket, "Missing username for create action")
+        return
     if new_room in rooms:
         await send_error(websocket, "Room already exists")
         return
@@ -90,15 +104,17 @@ async def handle_create(websocket, data):
     await remove_user_from_room(websocket)
     rooms[new_room].add(websocket)
     user_rooms[websocket] = new_room
+    user_names[websocket] = username
 
     await send_success(websocket, f"Created room {new_room}", new_room)
     await notify_room(new_room, {
         "type": "user_joined",
-        "user_id": id(websocket)
+        "username": username  # Changed from user_name
     })
 
 async def handle_send(websocket, data):
     """Handle message sending to current room"""
+    print(f"Data: {data}")
     if websocket not in user_rooms:
         await send_error(websocket, "Not in any room")
         return
@@ -109,11 +125,14 @@ async def handle_send(websocket, data):
         return
 
     room_id = user_rooms[websocket]
+    username = user_names.get(websocket, "Unknown User")
+    
     await notify_room(room_id, {
         "type": "message",
-        "user_id": id(websocket),
+        "username": username,
         "content": message
     })
+
 
 async def handle_disconnect(websocket, data):
     """Handle explicit disconnect request"""
@@ -126,6 +145,7 @@ ACTION_HANDLERS = {
     "send": handle_send,
     "disconnect": handle_disconnect
 }
+
 
 async def handler(websocket):
     """Main connection handler"""
@@ -147,6 +167,7 @@ async def handler(websocket):
                 await send_error(websocket, f"Server error: {str(e)}")
     finally:
         await remove_user_from_room(websocket)
+
 
 async def main():
     """Start the websocket server"""
