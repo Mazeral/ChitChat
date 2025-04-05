@@ -83,9 +83,10 @@
         placeholder="Message..."
         type="text"
         id="messageInput"
-        @keyup.enter="handleSendMessage"
+		v-model="messageInput"
+        @keyup.enter="triggerSendMessage"
       />
-      <button id="sendButton" @click="handleSendMessage">
+      <button id="sendButton" @click="triggerSendMessage">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663">
           <path
             fill="none"
@@ -105,66 +106,50 @@
 </template>
 
 <script setup>
-import { ref, defineEmits } from 'vue'
+import { ref, defineEmits, defineProps, watch, nextTick, onMounted, onUpdated } from 'vue'
 
-const emit = defineEmits(['leave-chat'])
-const websocket = new WebSocket('ws://localhost:8765')
-const messages = ref([])
+const emit = defineEmits(['leave-room', 'send-message'])
+const props = defineProps({
+  userName: String,
+  messages: Array, // Receive messages from App.vue
+  roomId: String,
+})
 const messageInput = ref('')
+const messageList = ref([])
 
-websocket.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data)
-    console.log('Received message:', data)
-    if (data.type === 'message' && data.content && data.user_name) {
-      messages.value.push({
-        id: Date.now(), // Simple way to generate a unique ID
-        userName: data.user_name,
-        content: data.content,
-        type: 'received', // Assuming all received messages are of type 'received'
-      })
+// To know if the required data is there
+onMounted(() => {
+  // console.log('Chat component mounted. User:', props.userName, 'Room:', props.roomId);
+  scrollToBottom() // Scroll down on initial mount
+})
+
+// Scrolling to bottom with each new message
+onUpdated(() => {
+  scrollToBottom()
+})
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    // Ensure DOM is updated before scrolling
+    if (messageList.value) {
+      messageList.value.scrollTop = messageList.value.scrollHeight
     }
-  } catch (error) {
-    console.error('Error parsing message:', error)
-  }
+  })
 }
 
-websocket.onclose = () => {
-  console.log('Disconnected from WebSocket server')
-}
-
-const handleSendMessage = () => {
-  console.log('handleSendMessage function called!') // Add this line
+const triggerSendMessage = () => {
+  console.log('triggerSendMessage function called');
   const content = messageInput.value.trim()
+  console.log(content)
   if (content) {
-    sendMessage(content)
-    messages.value.push({
-      id: Date.now(),
-      userName: 'You', // Or get your actual username if you store it
-      content: content,
-      type: 'sent',
-    })
+    console.log('Emitting send-message with content:', content); // Add this line
+    emit('send-message', content) // Emit only the message content
     messageInput.value = ''
   }
 }
 
-function sendMessage(content) {
-  console.log('sendMessage function called with content:', content) // Add this
-  console.log('WebSocket readyState:', websocket.readyState) // Add this
-  if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action: 'send', message: content }))
-  } else {
-    console.error('WebSocket connection is not open.')
-  }
-}
-
 const leave = () => {
-  if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action: 'disconnect' })) // Send disconnect action
-  } else {
-    console.error('WebSocket connection is not open.')
-  }
-  emit('leave-chat')
+  emit('leave-room', props.roomId)
 }
 </script>
 

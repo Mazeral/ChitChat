@@ -2,17 +2,20 @@
   <div class="background-container"></div>
   <div class="content-container">
     <WelcomeCard
-      v-show="!isChatJoined"
-      @joined-chat="handleRoomJoined"
+      v-show="!isRoomJoined"
+      @room-joined="handleRoomJoined"
       @room-created="handleRoomCreated"
       @name-submitted="handleJoinedChat"
       :class="welcomeCardTransitionClass"
     />
     <Chat
-      v-if="isChatJoined"
-      @leave-chat="handleLeaveChat"
+      v-if="isRoomJoined"
+      @leave-room="handleLeaveChat"
+      @send-message="sendWsMessage"
       :userName="userName"
+      :messages="messages"
       :class="chatTransitionClass"
+      :roomId="roomId"
     />
     <div v-if="showNotification" class="notification">
       Room created with ID: {{ notificationMessage }}
@@ -50,7 +53,7 @@ import Chat from './components/Chat.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 
 // Reactive state to track if the user has joined a chat room
-const isChatJoined = ref(false)
+const isRoomJoined = ref(false)
 const isWelcomeCardLeaving = ref(false)
 const isChatLeaving = ref(false)
 const isWelcomeCardEntering = ref(true) // Start entering on mount
@@ -58,21 +61,13 @@ const isChatEntering = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const userName = ref('')
-
-// // Removed the duplicate onMounted setting isWelcomeCardEntering to true
-// onMounted(() => {
-//  isWelcomeCardEntering.value = true
-//  isChatJoined.value = false // Keep this if needed for initial state clarity
-// })
+const messages = ref([])
+const websocket = ref(null)
+const roomId = ref('')
 
 // Function to handle the event when the user submits their name
 const handleJoinedChat = (name) => {
   userName.value = name
-  // REMOVE THESE LINES - Don't trigger exit animation here
-  // isWelcomeCardLeaving.value = true
-  // setTimeout(() => {
-  //   isWelcomeCardEntering.value = false // This logic might need rethinking or removal
-  // }, 500)
   console.log('handleJoinedChat (name submitted) called with name:', name)
 }
 
@@ -81,10 +76,11 @@ const handleLeaveChat = () => {
 
   // Wait for the chat exit animation to complete (0.5s)
   setTimeout(() => {
-    isChatJoined.value = false // Now remove the Chat component from the DOM
+    isRoomJoined.value = false // Now remove the Chat component from the DOM
 
     // Immediately trigger the WelcomeCard enter animation
     isWelcomeCardEntering.value = true
+    messages.value = []
 
     // Reset the WelcomeCard enter animation flag after it plays
     setTimeout(() => {
@@ -96,66 +92,33 @@ const handleLeaveChat = () => {
   console.log('handleLeaveChat called')
 }
 
-const handleRoomJoined = () => {
-  isWelcomeCardLeaving.value = true // 1. Start WelcomeCard exit animation
-  console.log('handleRoomJoined: WelcomeCard leaving animation started.')
-
-  // 2. Wait for WelcomeCard exit animation to finish
-  setTimeout(() => {
-    isChatJoined.value = true // 3. Logically switch: hide WelcomeCard (v-show), prepare Chat (v-if)
-    isWelcomeCardLeaving.value = false // Reset leaving flag (can be done here or on re-entry)
-    console.log('handleRoomJoined: isChatJoined set to true.')
-
-    // 4. Ensure DOM updates before starting Chat enter animation
-    nextTick(() => {
-      isChatEntering.value = true // 5. Start Chat enter animation
-      console.log('handleRoomJoined: Chat entering animation started.')
-
-      // 6. Clean up Chat entering flag after animation duration
-      setTimeout(() => {
-        isChatEntering.value = false
-        console.log('handleRoomJoined: Chat entering animation finished.')
-      }, 500) // Duration of chat enter animation (scale-in-center)
-    })
-  }, 500) // Duration of welcome card exit animation (slide-out-top)
-
-  console.log('handleRoomJoined (joined-chat event) called')
+const handleRoomCreated = ({ roomId: newRoomId, userName: creatorName }) => {
+  roomId.value = newRoomId
+  console.log(`handleRoomCreated called with roomId: ${newRoomId}, userName: ${creatorName}`)
+  console.log(
+    `Current roomId ref value: ${roomId.value}, current userName ref value: ${userName.value}`,
+  )
+  connectWebSocket(newRoomId, creatorName, 'create')
+  console.log(`After connectWebSocket call in handleRoomCreated`)
+  startTransitionToChat(newRoomId)
 }
 
-const handleRoomCreated = (roomId) => {
-  notificationMessage.value = `${roomId}`
-  showNotification.value = true
-
-  isWelcomeCardLeaving.value = true // 1. Start WelcomeCard exit animation
-  console.log('handleRoomCreated: WelcomeCard leaving animation started.')
-
-  // 2. Wait for WelcomeCard exit animation to finish
-  setTimeout(() => {
-    isChatJoined.value = true // 3. Logically switch
-    isWelcomeCardLeaving.value = false // Reset leaving flag
-    console.log('handleRoomCreated: isChatJoined set to true.')
-
-    // 4. Ensure DOM updates before starting Chat enter animation
-    nextTick(() => {
-      isChatEntering.value = true // 5. Start Chat enter animation
-      console.log('handleRoomCreated: Chat entering animation started.')
-
-      // 6. Clean up Chat entering flag after animation duration
-      setTimeout(() => {
-        isChatEntering.value = false
-        console.log('handleRoomCreated: Chat entering animation finished.')
-      }, 500) // Duration of chat enter animation (scale-in-center)
-    })
-  }, 500) // Duration of welcome card exit animation (slide-out-top)
-
-  console.log('handleRoomCreated called with roomId:', roomId)
+const handleRoomJoined = ({ roomId: joinRoomId, userName: participantName }) => {
+  roomId.value = joinRoomId
+  console.log(`handleRoomJoined called with roomId: ${joinRoomId}, userName: ${participantName}`)
+  console.log(
+    `Current roomId ref value: ${roomId.value}, current userName ref value: ${userName.value}`,
+  )
+  connectWebSocket(joinRoomId, participantName, 'join')
+  console.log(`After connectWebSocket call in handleRoomJoined`)
+  startTransitionToChat(joinRoomId)
 }
 
 // --- Computed Classes (Unchanged but verify class names match CSS) ---
 const welcomeCardTransitionClass = computed(() => {
   if (isWelcomeCardLeaving.value) {
     return 'slide-out-top'
-  } else if (!isChatJoined.value && isWelcomeCardEntering.value) {
+  } else if (!isRoomJoined.value && isWelcomeCardEntering.value) {
     // This condition might need adjustment based on handleLeaveChat logic
     // Ensure 'scale-in-center' is applied when returning from chat
     return 'scale-in-center'
@@ -166,11 +129,150 @@ const welcomeCardTransitionClass = computed(() => {
 const chatTransitionClass = computed(() => {
   if (isChatLeaving.value) {
     return 'slide-out-bottom'
-  } else if (isChatJoined.value && isChatEntering.value) {
+  } else if (isRoomJoined.value && isChatEntering.value) {
     return 'scale-in-center'
   }
   return ''
 })
+
+// Hanlding WebSocket connections with a single source of truth
+const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
+  // Ensures only one connection for each client
+  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
+    console.log(`WebSocket already open`)
+    // If the connection is open, send the action immediately
+    websocket.value?.send(
+      JSON.stringify({
+        action: actionType,
+        room_id: roomIdToSend,
+        username: userNameToSend,
+      }),
+    )
+    return // Exit the function as the message is sent
+  }
+
+  // Creates a connection if there's none or not open
+  websocket.value = new WebSocket('ws://localhost:8765')
+  websocket.value.onopen = () => {
+    console.log(`Connection has been made`)
+    websocket.value?.send(
+      JSON.stringify({
+        action: actionType,
+        room_id: roomIdToSend,
+        username: userNameToSend,
+      }),
+    )
+  }
+
+  // Handles disconnections:
+  websocket.value.onclose = (event) => {
+    console.log(`Disconnected from the webocket server: ${event.reason}`)
+    isRoomJoined.value = false
+  }
+
+  websocket.value.onerror = (error) => {
+    console.error(`Error: ${error.message}`)
+  }
+
+  // handling messages
+  websocket.value.onmessage = (event) => {
+    try {
+      console.log('the event:')
+      console.log(event)
+      const data = JSON.parse(event.data)
+      console.log('App.vue: Received message:', data)
+
+      switch (data.type) {
+        case 'success': // Handle Join/Create Success
+          console.log(`App.vue: ${data.message}`)
+          roomId.value = data.room_id
+          notificationMessage.value = `Room ${data.action === 'create' ? 'created' : 'joined'}: ${data.room_id}`
+          showNotification.value = true
+          console.log('Success: notificationMessage.value:', notificationMessage.value)
+          console.log('Success: showNotification.value:', showNotification.value)
+          startTransitionToChat()
+          break
+
+        case 'error':
+          console.error(`App.vue: Server error: ${data.message}`)
+          notificationMessage.value = `Error: ${data.message}`
+          showNotification.value = true
+          break
+
+        case 'message':
+          if (data.content && data.username) {
+            messages.value.push({
+              id: Date.now() + Math.random(),
+              userName: data.username,
+              content: data.content,
+              type: data.username === userName.value ? 'sent' : 'received',
+            })
+          }
+          break
+
+        case 'user_joined':
+          console.log(`App.vue: User joined: ${data.username}`)
+          messages.value.push({
+            id: Date.now() + Math.random(),
+            type: 'system',
+            content: `${data.username} joined the room.`,
+          })
+          break
+
+        case 'user_left':
+          console.log(`App.vue: User left: ${data.username}`)
+          messages.value.push({
+            id: Date.now() + Math.random(),
+            type: 'system',
+            content: `${data.username} left the room.`,
+          })
+          break
+        case 'room-created':
+        case 'room-joined':
+          handleRoomSuccess(data)
+          break
+
+        default:
+          console.log('App.vue: Received unhandled message type:', data)
+      }
+    } catch (error) {
+      console.error('App.vue: Error parsing message:', error, event.data)
+    }
+  }
+}
+
+// Helper function:
+const sendWsMessage = (messageContent) => {
+console.log("Sending a message")
+  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
+    websocket.value.send(JSON.stringify({
+      action: 'send',
+      message: messageContent // Server expects 'content' in handle_send
+    }));
+  } else {
+    console.error('App.vue: WebSocket not open. Cannot send message:', messageContent);
+    notificationMessage.value = 'Connection lost. Please try again.';
+    showNotification.value = true;
+    connectWebSocket(roomId.value, userName.value, 'send');
+  }
+}
+
+const handleJoinRoom = (receivedRoomId) => {
+  roomId.value = receivedRoomId
+  connectWebSocket(receivedRoomId, userName.value, 'join')
+  // Reuse the same transition logic as room creation
+  startTransitionToChat(receivedRoomId)
+}
+
+const startTransitionToChat = (newRoomId) => {
+  isWelcomeCardLeaving.value = true
+  setTimeout(() => {
+    isWelcomeCardLeaving.value = false
+    isRoomJoined.value = true
+    isChatEntering.value = true
+    resetChatEnter()
+  }, 500)
+}
 
 // --- Watchers (Keep for resetting animation flags, review logic if needed) ---
 // This logic might need adjustment based on the new animation flow
@@ -187,6 +289,13 @@ const resetWelcomeCardEnter = () => {
   }, 500) // Duration of scale-in-center
 }
 
+const handleRoomSuccess = (data) => {
+  roomId.value = data.room_id
+  notificationMessage.value = `Room ${data.action}: ${data.room_id}`
+  showNotification.value = true
+  startTransitionToChat(data.room_id)
+}
+
 const resetChatEnter = () => {
   setTimeout(() => {
     isChatEntering.value = false
@@ -194,7 +303,7 @@ const resetChatEnter = () => {
 }
 
 watch(
-  () => !isChatJoined.value,
+  () => !isRoomJoined.value,
   (newValue, oldValue) => {
     // Trigger enter animation only when transitioning from chat back to welcome
     if (newValue && !oldValue) {
@@ -205,7 +314,7 @@ watch(
 )
 
 watch(
-  () => isChatJoined.value,
+  () => isRoomJoined.value,
   (newValue, oldValue) => {
     // Trigger enter animation only when transitioning from welcome to chat
     if (newValue && !oldValue) {

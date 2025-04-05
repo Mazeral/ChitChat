@@ -155,6 +155,8 @@ async def handler(websocket):
                 data = json.loads(message)
                 action = data.get("action")
 
+                print(f"Received action: {action}")  # Added this line
+
                 if action not in ACTION_HANDLERS:
                     await send_error(websocket, "Invalid action")
                     continue

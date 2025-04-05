@@ -55,7 +55,7 @@
 <script setup>
 import { ref, onMounted, nextTick, defineEmits } from 'vue'
 
-const emit = defineEmits(['joined-chat', 'room-created', 'name-submitted'])
+const emit = defineEmits(['room-joined', 'room-created', 'name-submitted'])
 const nameEntered = ref(false)
 const nameInput = ref('')
 const userName = ref('')
@@ -125,85 +125,23 @@ function generateRandomAlphanumericWordSimple() {
   }).join('')
 }
 
-const websocket = new WebSocket('ws://localhost:8765')
-// Checking if the connection was made
-websocket.onopen = () => {
-  console.log('Connection to the server has been established')
-}
-
-websocket.onclose = () => {
-  console.log('Connection to the server has been closed')
-}
-
-// Helper function to make communication easier
-const sendMessage = (action, data) => {
-  if (websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({ action, ...data }))
+const joinRoom = () => {
+  if (roomToJoin.value) {
+    emit('room-joined', {
+      roomId: roomToJoin.value,
+      userName: userName.value,
+    })
   } else {
-    console.error('WebSocket connection is not open.')
-  }
-}
-
-websocket.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data)
-    console.log('Received response in WelcomeCard:', data)
-
-    switch (data.type) {
-      case 'error':
-        console.error('Join failed:', data.message)
-        if (data.message === "Room doesn't exist") {
-          // Optionally update the UI to show "Room doesn't exist" error
-          console.log("Displaying 'Room doesn't exist' error to the user.")
-        } else if (data.message === 'Missing room_id for join action') {
-          console.log("Displaying 'Room ID required' error.")
-        } else if (
-          data.message === 'Missing username for join action' ||
-          data.message === 'Missing username for create action'
-        ) {
-          console.log('Username is required.')
-        } else if (data.message === 'Room already exists') {
-          console.log('Room already exists.')
-        } else {
-          // Handle other potential errors
-          console.log('Other error:', data.message)
-        }
-        break
-      case 'success':
-        console.log(`${data.message}`)
-        const roomId = data.room_id
-        currentRoomId.value = roomId
-        console.log('Emitting room-created event with ID:', roomId)
-        emit('room-created', roomId) // Emit the event with the room ID
-        emit('joined-chat') // Emit the event to transition to chat
-        break
-      case 'user_joined':
-        // This is typically for other users joining, the 'success' handles the current user
-        console.log('Another user joined:', data.username)
-        break
-      default:
-        console.log('Received unknown message type:', data)
-        break
-    }
-  } catch (error) {
-    console.error('Error parsing message:', error)
+    console.log('Room ID cannot be empty!')
   }
 }
 
 const createRoom = () => {
   const room = generateRandomAlphanumericWordSimple()
-  sendMessage('create', { room_id: room, username: userName.value })
-  console.log(`created a room with ID: ${room}`)
-}
-
-const joinRoom = () => {
-  if (roomToJoin.value) {
-    currentRoomId.value = roomToJoin.value // for debugging
-    console.log(`Attempting to join room: ${roomToJoin.value} with username: ${userName.value}`)
-    sendMessage('join', { room_id: roomToJoin.value, username: userName.value })
-  } else {
-    console.log('Room ID cannot be empty!')
-  }
+  emit('room-created', {
+    roomId: room,
+    userName: userName.value,
+  })
 }
 </script>
 
