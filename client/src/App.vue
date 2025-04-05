@@ -243,17 +243,19 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
 
 // Helper function:
 const sendWsMessage = (messageContent) => {
-console.log("Sending a message")
+  console.log('Sending a message')
   if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
-    websocket.value.send(JSON.stringify({
-      action: 'send',
-      message: messageContent // Server expects 'content' in handle_send
-    }));
+    websocket.value.send(
+      JSON.stringify({
+        action: 'send',
+        message: messageContent, // Server expects 'content' in handle_send
+      }),
+    )
   } else {
-    console.error('App.vue: WebSocket not open. Cannot send message:', messageContent);
-    notificationMessage.value = 'Connection lost. Please try again.';
-    showNotification.value = true;
-    connectWebSocket(roomId.value, userName.value, 'send');
+    console.error('App.vue: WebSocket not open. Cannot send message:', messageContent)
+    notificationMessage.value = 'Connection lost. Please try again.'
+    showNotification.value = true
+    connectWebSocket(roomId.value, userName.value, 'send')
   }
 }
 

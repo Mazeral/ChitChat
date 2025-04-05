@@ -33,44 +33,17 @@
     </button>
 
     <ul class="chat-messages">
-      <li class="received slide-in-left">
-        <div class="username">User A</div>
-        <div class="message-content">this text is for testing the chat property correctly</div>
-      </li>
-      <li class="sent slide-in-right">
-        <div class="username">You</div>
-        <div class="message-content">this text is for a sent message</div>
-      </li>
-      <li class="received slide-in-left">
-        <div class="username">User B</div>
-        <div class="message-content">another received message</div>
-      </li>
-      <li class="sent slide-in-right">
-        <div class="username">You</div>
-        <div class="message-content">this is another message I sent</div>
-      </li>
-      <li class="received slide-in-left">
-        <div class="username">User C</div>
-        <div class="message-content">this text is for testing the chat property correctly</div>
-      </li>
-      <li class="received slide-in-left">
-        <div class="username">User A</div>
-        <div class="message-content">this text is for testing the chat property correctly</div>
-      </li>
-      <li class="received slide-in-left">
-        <div class="username">User D</div>
-        <div class="message-content">this text is for testing the chat property correctly</div>
-      </li>
-      <li class="received slide-in-left">
-        <div class="username">User B</div>
-        <div class="message-content">this text is for testing the chat property correctly</div>
-      </li>
       <li
         v-for="message in messages"
         :key="message.id"
         :class="[
-          { received: message.type === 'received', sent: message.type === 'sent' },
+          {
+            received: message.type === 'received',
+            sent: message.type === 'sent',
+            default: message.type !== 'received' && message.type !== 'sent', // Add this
+          },
           message.type === 'received' ? 'slide-in-left' : 'slide-in-right',
+          message.type === 'default' ? 'centered-message' : '', // Optional: Add a class for centering
         ]"
       >
         <div class="username">{{ message.userName }}</div>
@@ -83,7 +56,7 @@
         placeholder="Message..."
         type="text"
         id="messageInput"
-		v-model="messageInput"
+        v-model="messageInput"
         @keyup.enter="triggerSendMessage"
       />
       <button id="sendButton" @click="triggerSendMessage">
@@ -138,11 +111,11 @@ const scrollToBottom = () => {
 }
 
 const triggerSendMessage = () => {
-  console.log('triggerSendMessage function called');
+  console.log('triggerSendMessage function called')
   const content = messageInput.value.trim()
   console.log(content)
   if (content) {
-    console.log('Emitting send-message with content:', content); // Add this line
+    console.log('Emitting send-message with content:', content) // Add this line
     emit('send-message', content) // Emit only the message content
     messageInput.value = ''
   }
@@ -246,7 +219,7 @@ const leave = () => {
 }
 #messageInput:focus ~ #sendButton svg path,
 #messageInput:valid ~ #sendButton svg path {
-  fill: #2b59c3;
+  fill: #93a8ac;
   stroke: white;
 }
 
@@ -271,7 +244,7 @@ const leave = () => {
   transition: all 0.3s;
 }
 #sendButton:hover svg path {
-  fill: #2b59c3;
+  fill: #93a8ac;
   stroke: white;
 }
 
@@ -458,5 +431,26 @@ const leave = () => {
 .chat-messages {
   scrollbar-width: thin; /* Can be auto, thin, or none */
   scrollbar-color: #888 rgba(0, 0, 0, 0.1); /* thumb color track color */
+}
+.chat-messages li.default {
+  background-color: rgba(255, 255, 255, 0.2); /* Transparent white background */
+  color: white; /* White font */
+  text-align: center; /* Center the text within the message */
+  border-radius: 15px; /* Optional: Add some rounded corners */
+  padding: 8px 15px; /* Optional: Add some padding */
+  margin: 5px auto; /* Center the message block horizontally */
+  display: inline-block; /* Adjust display as needed */
+  width: 25%; /* Adjust width as needed */
+}
+
+/* Optional: Style to center the entire li element on the screen */
+.chat-messages li.centered-message {
+  display: flex;
+  justify-content: center;
+  width: 100%; /* Make it take full width */
+}
+
+.chat-messages li.centered-message > div {
+  text-align: center; /* Center text within the div if needed */
 }
 </style>
