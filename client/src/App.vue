@@ -12,6 +12,7 @@
       v-if="isRoomJoined"
       @leave-room="handleLeaveChat"
       @send-message="sendWsMessage"
+		@mark-seen="handleMarkSeen"
       :userName="userName"
       :messages="messages"
       :class="chatTransitionClass"
@@ -231,6 +232,14 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
         case 'room-joined':
           handleRoomSuccess(data)
           break
+		case 'message_ack':
+			const ackedMessage = messages.value.find(m => m.id === data.message_id);
+			if (ackedMessage) ackedMessage.status = 'delivered';
+			break;
+		case 'message_seen':
+			const seenMessage = messages.value.find(m => m.id === data.message_id);
+			if (seenMessage) seenMessage.status = 'seen';
+			break;
 
         default:
           console.log('App.vue: Received unhandled message type:', data)
@@ -243,21 +252,37 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
 
 // Helper function:
 const sendWsMessage = (messageContent) => {
-  console.log('Sending a message')
-  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
-    websocket.value.send(
-      JSON.stringify({
-        action: 'send',
-        message: messageContent, // Server expects 'content' in handle_send
-      }),
-    )
-  } else {
-    console.error('App.vue: WebSocket not open. Cannot send message:', messageContent)
-    notificationMessage.value = 'Connection lost. Please try again.'
-    showNotification.value = true
-    connectWebSocket(roomId.value, userName.value, 'send')
-  }
-}
+    const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    
+    messages.value.push({
+        id: messageId,
+        content: messageContent,
+        userName: userName.value,
+        type: 'sent',
+        status: 'sending'
+    });
+
+    if (websocket.value?.readyState === WebSocket.OPEN) {
+        websocket.value.send(JSON.stringify({
+            action: 'send',
+            message: messageContent,
+            message_id: messageId
+        }));
+        // Optimistically update to sent status
+        const sentMessage = messages.value.find(m => m.id === messageId);
+        if (sentMessage) sentMessage.status = 'sent';
+    }
+};
+
+// Add mark seen handler
+const handleMarkSeen = (messageIds) => {
+    if (websocket.value?.readyState === WebSocket.OPEN) {
+        websocket.value.send(JSON.stringify({
+            action: "mark_seen",
+            message_ids: messageIds
+        }));
+    }
+};
 
 const handleJoinRoom = (receivedRoomId) => {
   roomId.value = receivedRoomId

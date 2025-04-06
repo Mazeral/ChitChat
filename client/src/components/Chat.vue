@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-container">
+  <div class="chat-container" @focus=handleFocus>
     <button class="leave-button noselect" @click.prevent="leave">
       <span class="text">Leave</span>
       <span class="icon">
@@ -32,7 +32,7 @@
       </span>
     </button>
 
-    <ul class="chat-messages">
+    <ul class="chat-messages" ref="messageList">
       <li
         v-for="message in messages"
         :key="message.id"
@@ -48,6 +48,12 @@
       >
         <div class="username">{{ message.userName }}</div>
         <div class="message-content">{{ message.content }}</div>
+		<div class="message-status">
+			<span v-if="message.status === 'sending'" class="clock">🕒</span>
+			<span v-else-if="message.status === 'sent'" class="single-check">✓</span>
+			<span v-else-if="message.status === 'delivered'" class="double-check">✓✓</span>
+			<span v-else-if="message.status === 'seen'" class="seen-check">✓✓</span>
+		</div>
       </li>
     </ul>
     <div class="messageBox">
@@ -90,6 +96,13 @@ const props = defineProps({
 const messageInput = ref('')
 const messageList = ref([])
 
+const handleFocus = () => {
+    const unseenIds = props.messages
+        .filter(m => m.type === 'sent' && m.status === 'delivered')
+        .map(m => m.id);
+    if (unseenIds.length) emit('mark-seen', unseenIds);
+};
+
 // To know if the required data is there
 onMounted(() => {
   // console.log('Chat component mounted. User:', props.userName, 'Room:', props.roomId);
@@ -118,6 +131,7 @@ const triggerSendMessage = () => {
     console.log('Emitting send-message with content:', content) // Add this line
     emit('send-message', content) // Emit only the message content
     messageInput.value = ''
+    scrollToBottom()
   }
 }
 
@@ -452,5 +466,20 @@ const leave = () => {
 
 .chat-messages li.centered-message > div {
   text-align: center; /* Center text within the div if needed */
+}
+
+.message-status {
+    margin-left: auto;
+    padding-left: 8px;
+    opacity: 0.7;
+}
+
+.single-check { color: #666; }
+.double-check { color: #666; }
+.seen-check { color: #2196f3; }
+.clock { color: #666; }
+
+.chat-container:focus {
+    outline: none;
 }
 </style>
