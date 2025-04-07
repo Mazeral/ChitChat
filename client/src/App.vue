@@ -142,9 +142,19 @@ const chatTransitionClass = computed(() => {
   return ''
 })
 
+const getWebSocketServer = () => {
+  if (window.location.host === "mazeral.github.io") {
+    return "wss://conventional-jenine-gigaorga-4011379f.koyeb.app/";
+  } else if (window.location.host === "localhost:5173") {
+    return "ws://localhost:8001/";
+  } else {
+    throw new Error(`Unsupported host: ${window.location.host}`);
+  }
+}
+
 // Hanlding WebSocket connections with a single source of truth
 const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
-  websocket.value = new WebSocket('ws://localhost:8765')
+  websocket.value = new WebSocket(getWebSocketServer())
   websocket.value.onopen = () => {
     websocket.value.send(
       JSON.stringify({
