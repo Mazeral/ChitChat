@@ -477,4 +477,52 @@ const createRoom = () => {
 	width: 30px;
 	height:30px
 }
+
+@media (max-width: 768px) {
+  .e-card {
+    --card-width: 90vw;
+    --card-height: 70vh;
+    margin: 20px auto;
+  }
+
+  .infotop {
+    font-size: 18px;
+	top: calc(var(--card-height) * 0.28); /* Reduced from 0.34 to 0.28 */
+    padding: 0 20px; /* Increased padding */
+    transform: translateY(-10%); /* Adjust vertical position */
+  }
+
+  .infotop input[type='text'] {
+    width: 100%;
+    max-width: 250px;
+    font-size: 14px;
+  }
+
+  .infotop button {
+    width: 9em; /* Increased from 7em */
+    font-size: 14px; /* Reduced from 15px */
+    padding: 0 12px; /* Add horizontal padding for better spacing */
+    white-space: nowrap; /* Prevent text wrapping */
+  }
+
+  .infotop h1 {
+    font-size: 1.8em;
+    margin-bottom: 15px;
+  }
+}
+@media (max-width: 768px) {
+  .infotop input[type='text'] {
+    width: 90%; /* More reasonable width */
+    max-width: 280px; /* Slightly smaller max-width */
+    box-sizing: border-box; /* Include padding in width */
+    padding: 8px 12px; /* Adjust padding */
+    margin: 10px auto; /* Center with automatic margins */
+    display: block; /* Make it a block element */
+  }
+}
+@media (max-width: 474px) {
+  .infotop span {
+    display: none;
+  }
+}
 </style>

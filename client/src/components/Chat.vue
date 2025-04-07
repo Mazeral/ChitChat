@@ -119,6 +119,7 @@
         id="messageInput"
         v-model="messageInput"
         @keyup.enter="triggerSendMessage"
+		autocomplete="off"
       />
       <button id="sendButton" @click="triggerSendMessage">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 664 663">
@@ -327,6 +328,13 @@ const leave = () => {
   border: none;
   border-radius: 5px;
   margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .leave-button {
+	  top: 10px; /* Increased from -50px */
+	  z-index: 10; /* Higher than notification */
+  }
 }
 
 /* --- Rest of the leave-button styles remain the same --- */
@@ -595,5 +603,77 @@ const leave = () => {
   height: 20px;
   min-width: 20px; /* Prevent shrinking */
   min-height: 20px;
+}
+
+@media (max-width: 768px) {
+  .chat-container {
+    width: 100%;
+    margin: 10px 0;
+    min-height: calc(100vh - 100px);
+  }
+
+  .chat-messages {
+    border-radius: 15px;
+    padding: 10px;
+    margin-bottom: 10px;
+    height: 65vh;
+  }
+
+  .chat-messages li {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .messageBox {
+    height: 50px;
+    padding: 0 5px 0 10px;
+  }
+
+  #messageInput {
+    font-size: 16px;
+  }
+
+  .leave-button {
+    width: 120px;
+    height: 40px;
+    top: -50px;
+  }
+
+  .leave-button .text {
+    font-size: 14px;
+    transform: translateX(25px);
+  }
+
+  .leave-button .icon {
+    transform: translateX(90px);
+    height: 35px;
+  }
+}
+
+@media (max-width: 768px) {
+  .messageBox {
+    width: 95%; /* Reduce width slightly */
+    margin: 0 auto; /* Center it */
+    padding: 0 8px 0 12px; /* Adjust padding */
+  }
+
+  #messageInput {
+    width: calc(100% - 50px); /* Account for button width */
+    max-width: none; /* Remove any max-width constraints */
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-messages li {
+    font-size: 16px; /* Increased from 14px to meet mobile standards [[5]] */
+    line-height: 1.5; /* Improved readability [[7]] */
+    padding: 12px 16px; /* Adjust padding for touch targets [[9]] */
+  }
+
+  /* Remove conflicting rule */
+  li {
+    font-size: unset !important; /* Override the erroneous 100px rule */
+  }
 }
 </style>

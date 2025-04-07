@@ -575,4 +575,36 @@ main {
 .notification.error {
   background-color: #f44336; /* Red */
 }
+
+/* Add these media queries */
+@media (max-width: 768px) {
+  .content-container {
+    padding-top: 10px;
+  }
+
+  .notification {
+	  z-index: 10; /* Higher than notification */
+	  top: 10px; /* Adjusted from -60px */
+  }
+
+  .close-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+/* Add to global styles in App.vue */
+@media (max-width: 768px) {
+  input {
+    -webkit-appearance: none; /* Remove iOS styling */
+    border-radius: 8px; /* Consistent border radius */
+    border: 1px solid #ccc; /* Visible border */
+    background: rgba(255, 255, 255, 0.9); /* Better contrast */
+  }
+
+  input:focus {
+    outline: none;
+    border-color: #93a8ac; /* Match your theme */
+    box-shadow: 0 0 0 2px rgba(147, 168, 172, 0.3); /* Focus indicator */
+  }
+}
 </style>
