@@ -45,15 +45,17 @@
       >
         <h1>Enter Room ID</h1>
         <input v-model="roomToJoin" type="text" placeholder="Room ID" />
-        <button @click.prevent="joinRoom">Enter</button>
+        <button @click.prevent="joinRoom" :disabled="!roomToJoin">Enter</button>
         <button @click.prevent="goBack">Back</button>
+        <!-- Add error display if needed -->
+        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, defineEmits } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 const emit = defineEmits(['room-joined', 'room-created', 'name-submitted'])
 const nameEntered = ref(false)
@@ -125,14 +127,30 @@ function generateRandomAlphanumericWordSimple() {
   }).join('')
 }
 
-const joinRoom = () => {
-  if (roomToJoin.value) {
+const joinRoom = async () => {
+  if (!roomToJoin.value) {
+    console.log('Room ID cannot be empty!')
+    return
+  }
+
+  // Show loading state
+  const joinButton = document.querySelector('.infotop button:first-of-type')
+  if (joinButton) {
+    joinButton.disabled = true
+    joinButton.textContent = 'Joining...'
+  }
+
+  try {
     emit('room-joined', {
       roomId: roomToJoin.value,
       userName: userName.value,
     })
-  } else {
-    console.log('Room ID cannot be empty!')
+  } finally {
+    // Reset button state
+    if (joinButton) {
+      joinButton.disabled = false
+      joinButton.textContent = 'Enter'
+    }
   }
 }
 
@@ -416,5 +434,15 @@ const createRoom = () => {
     transform: translateX(1000px);
     opacity: 0;
   }
+}
+.error-message {
+  color: #ff6b6b;
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
+.infotop button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 </style>

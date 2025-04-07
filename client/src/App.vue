@@ -12,7 +12,6 @@
       v-if="isRoomJoined"
       @leave-room="handleLeaveChat"
       @send-message="sendWsMessage"
-		@mark-seen="handleMarkSeen"
       :userName="userName"
       :messages="messages"
       :class="chatTransitionClass"
@@ -72,48 +71,56 @@ const handleJoinedChat = (name) => {
   console.log('handleJoinedChat (name submitted) called with name:', name)
 }
 
-const handleLeaveChat = () => {
-  isChatLeaving.value = true // Start the chat exit animation
+const handleLeaveChat = async () => {
+  isChatLeaving.value = true
 
-  // Wait for the chat exit animation to complete (0.5s)
-  setTimeout(() => {
-    isRoomJoined.value = false // Now remove the Chat component from the DOM
+  try {
+    if (websocket.value?.readyState === WebSocket.OPEN) {
+      // Wait for disconnect message to be sent
+      await websocket.value.send(
+        JSON.stringify({
+          action: 'disconnect',
+          room_id: roomId.value,
+          username: userName.value,
+        }),
+      )
 
-    // Immediately trigger the WelcomeCard enter animation
-    isWelcomeCardEntering.value = true
+      // Give server time to process before closing
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  } catch (error) {
+    console.error('Error during disconnect:', error)
+  } finally {
+    // Proceed with UI transition regardless of WebSocket state
+    isRoomJoined.value = false
     messages.value = []
+    isWelcomeCardEntering.value = true
 
-    // Reset the WelcomeCard enter animation flag after it plays
+    // Close WebSocket if still open
+    if (websocket.value?.readyState === WebSocket.OPEN) {
+      websocket.value.close()
+    }
+
+    // Reset animation after transition
     setTimeout(() => {
-      isWelcomeCardEntering.value = false
-    }, 500) // Duration of welcome card enter animation
-
-    isChatLeaving.value = false // Reset chat leaving flag
-  }, 500) // Duration of chat exit animation
-  console.log('handleLeaveChat called')
+      isChatLeaving.value = false
+    }, 500)
+  }
 }
 
 const handleRoomCreated = ({ roomId: newRoomId, userName: creatorName }) => {
-  roomId.value = newRoomId
-  console.log(`handleRoomCreated called with roomId: ${newRoomId}, userName: ${creatorName}`)
-  console.log(
-    `Current roomId ref value: ${roomId.value}, current userName ref value: ${userName.value}`,
-  )
-  connectWebSocket(newRoomId, creatorName, 'create')
-  console.log(`After connectWebSocket call in handleRoomCreated`)
-  startTransitionToChat(newRoomId)
-}
+  roomId.value = newRoomId;
+  connectWebSocket(newRoomId, creatorName, 'create'); // Add 'create' action
+  notificationMessage.value = `Creating room ${newRoomId}...`;
+  showNotification.value = true;
+};
 
 const handleRoomJoined = ({ roomId: joinRoomId, userName: participantName }) => {
-  roomId.value = joinRoomId
-  console.log(`handleRoomJoined called with roomId: ${joinRoomId}, userName: ${participantName}`)
-  console.log(
-    `Current roomId ref value: ${roomId.value}, current userName ref value: ${userName.value}`,
-  )
-  connectWebSocket(joinRoomId, participantName, 'join')
-  console.log(`After connectWebSocket call in handleRoomJoined`)
-  startTransitionToChat(joinRoomId)
-}
+  roomId.value = joinRoomId;
+  connectWebSocket(joinRoomId, participantName, 'join'); // Add 'join' action
+  notificationMessage.value = `Joining room ${joinRoomId}...`;
+  showNotification.value = true;
+};
 
 // --- Computed Classes (Unchanged but verify class names match CSS) ---
 const welcomeCardTransitionClass = computed(() => {
@@ -137,33 +144,15 @@ const chatTransitionClass = computed(() => {
 })
 
 // Hanlding WebSocket connections with a single source of truth
-const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
-  // Ensures only one connection for each client
-  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
-    console.log(`WebSocket already open`)
-    // If the connection is open, send the action immediately
-    websocket.value?.send(
-      JSON.stringify({
-        action: actionType,
-        room_id: roomIdToSend,
-        username: userNameToSend,
-      }),
-    )
-    return // Exit the function as the message is sent
-  }
-
-  // Creates a connection if there's none or not open
-  websocket.value = new WebSocket('ws://localhost:8765')
+const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
+  websocket.value = new WebSocket('ws://localhost:8765');
   websocket.value.onopen = () => {
-    console.log(`Connection has been made`)
-    websocket.value?.send(
-      JSON.stringify({
-        action: actionType,
-        room_id: roomIdToSend,
-        username: userNameToSend,
-      }),
-    )
-  }
+    websocket.value.send(JSON.stringify({
+      action: action,  // Include the action type
+      room_id: roomIdToSend,
+      username: userNameToSend
+    }));
+  };
 
   // Handles disconnections:
   websocket.value.onclose = (event) => {
@@ -184,39 +173,70 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
       console.log('App.vue: Received message:', data)
 
       switch (data.type) {
-        case 'success': // Handle Join/Create Success
-          console.log(`App.vue: ${data.message}`)
-          roomId.value = data.room_id
-          notificationMessage.value = `Room ${data.action === 'create' ? 'created' : 'joined'}: ${data.room_id}`
-          showNotification.value = true
-          console.log('Success: notificationMessage.value:', notificationMessage.value)
-          console.log('Success: showNotification.value:', showNotification.value)
-          startTransitionToChat()
-          break
+		case 'success':
+		  console.log(`Success: ${data.message}`, data);
+		  if (data.room_id) {
+			roomId.value = data.room_id;
+			
+			// Use the presence of room_id to determine transition
+			notificationMessage.value = `Room ready: ${data.room_id}`;
+			showNotification.value = true;
+			startTransitionToChat(data.room_id);
+		  }
+		  break;
 
         case 'error':
           console.error(`App.vue: Server error: ${data.message}`)
           notificationMessage.value = `Error: ${data.message}`
           showNotification.value = true
+          // Reset roomId if join failed
+          if (data.action === 'join') {
+            roomId.value = ''
+          }
           break
 
         case 'message':
           if (data.content && data.username) {
-            messages.value.push({
-              id: Date.now() + Math.random(),
-              userName: data.username,
-              content: data.content,
-              type: data.username === userName.value ? 'sent' : 'received',
-            })
+            const isOwnMessage = data.username === userName.value
+
+            // Check if we already have this message
+            const existingIndex = messages.value.findIndex((m) => m.id === data.message_id)
+
+            if (existingIndex > -1) {
+              // Update existing message status
+              messages.value[existingIndex].status = isOwnMessage ? 'delivered' : 'received'
+            } else {
+              // Add new message with proper type and status
+              messages.value.push({
+                id: data.message_id,
+                content: data.content,
+                userName: data.username,
+                type: isOwnMessage ? 'sent' : 'received',
+                status: isOwnMessage ? 'sending' : 'received',
+              })
+
+              // Send receipt for received messages only
+              if (!isOwnMessage) {
+                websocket.value.send(
+                  JSON.stringify({
+                    action: 'received',
+                    message_id: data.message_id,
+                    room_id: roomId.value,
+                    username: userName.value,
+                  }),
+                )
+              }
+            }
           }
           break
 
+        // In your WebSocket message handler:
         case 'user_joined':
           console.log(`App.vue: User joined: ${data.username}`)
+          // Add simple system message without type checking
           messages.value.push({
             id: Date.now() + Math.random(),
-            type: 'system',
-            content: `${data.username} joined the room.`,
+            content: `${data.username} joined the room`,
           })
           break
 
@@ -224,23 +244,9 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
           console.log(`App.vue: User left: ${data.username}`)
           messages.value.push({
             id: Date.now() + Math.random(),
-            type: 'system',
-            content: `${data.username} left the room.`,
+            content: `${data.username} left the room`,
           })
           break
-        case 'room-created':
-        case 'room-joined':
-          handleRoomSuccess(data)
-          break
-		case 'message_ack':
-			const ackedMessage = messages.value.find(m => m.id === data.message_id);
-			if (ackedMessage) ackedMessage.status = 'delivered';
-			break;
-		case 'message_seen':
-			const seenMessage = messages.value.find(m => m.id === data.message_id);
-			if (seenMessage) seenMessage.status = 'seen';
-			break;
-
         default:
           console.log('App.vue: Received unhandled message type:', data)
       }
@@ -251,47 +257,42 @@ const connectWebSocket = (roomIdToSend, userNameToSend, actionType) => {
 }
 
 // Helper function:
-const sendWsMessage = (messageContent) => {
-    const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    
-    messages.value.push({
-        id: messageId,
-        content: messageContent,
-        userName: userName.value,
-        type: 'sent',
-        status: 'sending'
-    });
+const sendWsMessage = async (messageContent) => {
+  const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
-    if (websocket.value?.readyState === WebSocket.OPEN) {
-        websocket.value.send(JSON.stringify({
-            action: 'send',
-            message: messageContent,
-            message_id: messageId
-        }));
-        // Optimistically update to sent status
-        const sentMessage = messages.value.find(m => m.id === messageId);
-        if (sentMessage) sentMessage.status = 'sent';
-    }
-};
+  messages.value.push({
+    id: messageId,
+    content: messageContent,
+    userName: userName.value,
+    type: 'sent',
+    status: 'sending', // Starts as sending
+  })
 
-// Add mark seen handler
-const handleMarkSeen = (messageIds) => {
-    if (websocket.value?.readyState === WebSocket.OPEN) {
-        websocket.value.send(JSON.stringify({
-            action: "mark_seen",
-            message_ids: messageIds
-        }));
-    }
-};
+  if (websocket.value?.readyState === WebSocket.OPEN) {
+    websocket.value.send(
+      JSON.stringify({
+        action: 'send',
+        message: messageContent,
+        message_id: messageId,
+        room_id: roomId.value,
+        username: userName.value,
+      }),
+    )
+
+    // Optimistically update to sent status
+    const sentMessage = messages.value.find((m) => m.id === messageId)
+    if (sentMessage) sentMessage.status = 'sent'
+  }
+}
 
 const handleJoinRoom = (receivedRoomId) => {
-  roomId.value = receivedRoomId
-  connectWebSocket(receivedRoomId, userName.value, 'join')
-  // Reuse the same transition logic as room creation
-  startTransitionToChat(receivedRoomId)
+  roomId.value = receivedRoomId;
+  connectWebSocket(receivedRoomId, userName.value, 'join'); // Add action
+  startTransitionToChat(receivedRoomId);
 }
 
 const startTransitionToChat = (newRoomId) => {
+  console.log(`transitioning to the room`)
   isWelcomeCardLeaving.value = true
   setTimeout(() => {
     isWelcomeCardLeaving.value = false
@@ -320,6 +321,7 @@ const handleRoomSuccess = (data) => {
   roomId.value = data.room_id
   notificationMessage.value = `Room ${data.action}: ${data.room_id}`
   showNotification.value = true
+  console.log(`starting transitioning in handleRoomSuccess function`)
   startTransitionToChat(data.room_id)
 }
 
