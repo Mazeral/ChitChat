@@ -58,9 +58,14 @@ async def handle_join(websocket, data):
 
     rooms[requested_room]['members'].add(websocket)
     websocket_info[websocket] = {'room_id': requested_room, 'username': username}
-    
+    # Collect usernames
     await send_success(websocket, f"{requested_room}", requested_room)
-    await notify_room(requested_room, {"type": "user_joined", "username": username})
+    members = []
+    for client in rooms[requested_room]['members']:
+        if client in websocket_info:
+            members.append(websocket_info[client]['username'])
+    print(members)
+    await notify_room(requested_room, {"type": "user_joined", "username": username, "members": members})
 
 
 async def remove_user_from_room(websocket):

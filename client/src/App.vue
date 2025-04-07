@@ -241,6 +241,11 @@ const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
             id: Date.now() + Math.random(),
             content: `${data.username} joined the room`,
           })
+		  if (data.members)
+			  messages.value.push({
+				id: Date.now() + Math.random(),
+				content: `Current users: ${data.members}`,
+			  })
           break
 
         case 'user_left':
