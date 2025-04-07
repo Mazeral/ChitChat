@@ -5,6 +5,9 @@ import asyncio
 import json
 from websockets.asyncio.server import serve
 import websockets
+import http
+import os
+import signal
 
 # Store rooms and their members
 rooms = {}
@@ -193,9 +196,18 @@ async def handler(websocket):
         await remove_user_from_room(websocket)
 
 
+# for deploying
+def health_check(connection, request):
+    if request.path == "/healthz":
+        return connection.respond(http.HTTPStatus.OK, "OK\n")
+
+
 async def main():
     """Main function"""
-    async with serve(handler, "localhost", 8765) as server:
+    port = int(os.environ.get("PORT", "8001"))
+    async with serve(handler, "", port, process_request=health_check) as server:
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGTERM, server.close)
         print("WebSocket server started")
         await server.serve_forever()
 
