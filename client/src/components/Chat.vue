@@ -53,13 +53,61 @@
         <div class="username">{{ message.userName }}</div>
         <div class="message-content">{{ message.content }}</div>
         <div class="message-status">
-          <span v-if="message.status === 'sending'" class="clock">🕒</span>
-          <span v-else-if="message.status === 'sent'" class="single-check">✓</span>
+          <span v-if="message.status === 'sending'" class="clock">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+              <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+              <g id="SVGRepo_iconCarrier">
+                <path
+                  d="M12 7V12L14.5 10.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                  stroke="#000000"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              </g>
+            </svg>
+          </span>
+          <span v-else-if="message.status === 'sent'" class="single-check">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+              <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+              <g id="SVGRepo_iconCarrier">
+                <path
+                  d="M4 12.6111L8.92308 17.5L20 6.5"
+                  stroke="#000000"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              </g>
+            </svg>
+          </span>
           <span
             v-else-if="message.status === 'delivered' && message.type === 'sent'"
             class="double-check"
-            >✓✓</span
           >
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+              <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+              <g id="SVGRepo_iconCarrier">
+                <path
+                  d="M4 12.9L7.14286 16.5L15 7.5"
+                  stroke="#000000"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+                <path
+                  d="M20 7.5625L11.4283 16.5625L11 16"
+                  stroke="#000000"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+              </g>
+            </svg>
+          </span>
         </div>
       </li>
     </ul>
@@ -523,5 +571,29 @@ const leave = () => {
     -webkit-transform: scale(1);
     transform: scale(1);
   }
+}
+
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align to left */
+  width: 100%;
+}
+
+.message-status {
+  margin-top: 4px; /* Space between content and status */
+  margin-left: 0; /* Remove existing margin */
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: 2px; /* Space between icons if multiple */
+}
+
+/* Fix SVG size */
+.message-status svg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px; /* Prevent shrinking */
+  min-height: 20px;
 }
 </style>

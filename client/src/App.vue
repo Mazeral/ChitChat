@@ -17,8 +17,8 @@
       :class="chatTransitionClass"
       :roomId="roomId"
     />
-    <div v-if="showNotification" class="notification">
-      Room created with ID: {{ notificationMessage }}
+    <div v-if="showNotification" class="notification" :class="notificationType">
+      {{ notificationMessage }}
       <button @click="closeNotification" class="close-button">
         <svg
           viewBox="0 0 24 24"
@@ -64,6 +64,7 @@ const userName = ref('')
 const messages = ref([])
 const websocket = ref(null)
 const roomId = ref('')
+const notificationType = ref('success') // Default to success
 
 // Function to handle the event when the user submits their name
 const handleJoinedChat = (name) => {
@@ -109,18 +110,16 @@ const handleLeaveChat = async () => {
 }
 
 const handleRoomCreated = ({ roomId: newRoomId, userName: creatorName }) => {
-  roomId.value = newRoomId;
-  connectWebSocket(newRoomId, creatorName, 'create'); // Add 'create' action
-  notificationMessage.value = `Creating room ${newRoomId}...`;
-  showNotification.value = true;
-};
+  roomId.value = newRoomId
+  connectWebSocket(newRoomId, creatorName, 'create') // Add 'create' action
+  showNotification.value = true
+}
 
 const handleRoomJoined = ({ roomId: joinRoomId, userName: participantName }) => {
-  roomId.value = joinRoomId;
-  connectWebSocket(joinRoomId, participantName, 'join'); // Add 'join' action
-  notificationMessage.value = `Joining room ${joinRoomId}...`;
-  showNotification.value = true;
-};
+  roomId.value = joinRoomId
+  connectWebSocket(joinRoomId, participantName, 'join') // Add 'join' action
+  showNotification.value = true
+}
 
 // --- Computed Classes (Unchanged but verify class names match CSS) ---
 const welcomeCardTransitionClass = computed(() => {
@@ -145,14 +144,16 @@ const chatTransitionClass = computed(() => {
 
 // Hanlding WebSocket connections with a single source of truth
 const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
-  websocket.value = new WebSocket('ws://localhost:8765');
+  websocket.value = new WebSocket('ws://localhost:8765')
   websocket.value.onopen = () => {
-    websocket.value.send(JSON.stringify({
-      action: action,  // Include the action type
-      room_id: roomIdToSend,
-      username: userNameToSend
-    }));
-  };
+    websocket.value.send(
+      JSON.stringify({
+        action: action, // Include the action type
+        room_id: roomIdToSend,
+        username: userNameToSend,
+      }),
+    )
+  }
 
   // Handles disconnections:
   websocket.value.onclose = (event) => {
@@ -173,17 +174,18 @@ const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
       console.log('App.vue: Received message:', data)
 
       switch (data.type) {
-		case 'success':
-		  console.log(`Success: ${data.message}`, data);
-		  if (data.room_id) {
-			roomId.value = data.room_id;
-			
-			// Use the presence of room_id to determine transition
-			notificationMessage.value = `Room ready: ${data.room_id}`;
-			showNotification.value = true;
-			startTransitionToChat(data.room_id);
-		  }
-		  break;
+        case 'success':
+          console.log(`Success: ${data.message}`, data)
+          if (data.room_id) {
+            roomId.value = data.room_id
+
+            // Use the presence of room_id to determine transition
+            notificationMessage.value = `Joined A Room With ID: ${data.room_id}`
+            showNotification.value = true
+            startTransitionToChat(data.room_id)
+            notificationType.value = 'success'
+          }
+          break
 
         case 'error':
           console.error(`App.vue: Server error: ${data.message}`)
@@ -193,6 +195,7 @@ const connectWebSocket = (roomIdToSend, userNameToSend, action) => {
           if (data.action === 'join') {
             roomId.value = ''
           }
+          notificationType.value = 'error'
           break
 
         case 'message':
@@ -286,9 +289,9 @@ const sendWsMessage = async (messageContent) => {
 }
 
 const handleJoinRoom = (receivedRoomId) => {
-  roomId.value = receivedRoomId;
-  connectWebSocket(receivedRoomId, userName.value, 'join'); // Add action
-  startTransitionToChat(receivedRoomId);
+  roomId.value = receivedRoomId
+  connectWebSocket(receivedRoomId, userName.value, 'join') // Add action
+  startTransitionToChat(receivedRoomId)
 }
 
 const startTransitionToChat = (newRoomId) => {
@@ -548,5 +551,13 @@ main {
   display: flex; /* To center the SVG inside the button */
   align-items: center;
   justify-content: center;
+}
+
+.notification.success {
+  background-color: #4caf50; /* Green */
+}
+
+.notification.error {
+  background-color: #f44336; /* Red */
 }
 </style>

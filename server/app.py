@@ -59,7 +59,7 @@ async def handle_join(websocket, data):
     rooms[requested_room]['members'].add(websocket)
     websocket_info[websocket] = {'room_id': requested_room, 'username': username}
     
-    await send_success(websocket, f"Joined room {requested_room}", requested_room)
+    await send_success(websocket, f"{requested_room}", requested_room)
     await notify_room(requested_room, {"type": "user_joined", "username": username})
 
 
@@ -184,6 +184,7 @@ async def handler(websocket):
             except Exception as e:
                 await send_error(websocket, f"Server error: {str(e)}")
     finally:
+        # handles the diconnection of the user
         await remove_user_from_room(websocket)
 
 
